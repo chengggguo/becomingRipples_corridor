@@ -18,7 +18,7 @@
 
 - `presence_group_controller.ino`
 
-### 计划行为
+### 当前行为
 
 - 在 `D2` 读取 LD2410C 数字 OUT。
 - 最后一次检测到 presence 后，继电器继续保持 3 分钟。
@@ -112,7 +112,7 @@ To reduce momentary false triggers, the sensor OUT signal must stay active conti
 
 - `presence_group_controller.ino`
 
-### Planned Behavior
+### Current Behavior
 
 - Read LD2410C digital OUT on D2.
 - Keep relays active for 3 minutes after last presence.

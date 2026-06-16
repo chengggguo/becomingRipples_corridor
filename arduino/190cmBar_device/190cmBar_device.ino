@@ -19,10 +19,19 @@ const float HomePointY = topleftYX[0];
 #define stepPinRight 6
 #define dirPinRight 7
 
+const int triggerPin = 2;       // LOW = RUN, HIGH = IDLE
+const int resetRequestPin = 3;  // LOW = AUTOHOME/RESET request
+
 // 步进电机的参数
 const float mmPerRotation = 60.0;
 const int stepsPerRotation = 400;
 const float stepLength = mmPerRotation / stepsPerRotation;
+
+const int servoRestAngle = 19;
+const unsigned long runDelayMinMs = 1000UL;
+const unsigned long runDelayMaxMs = 10000UL;
+const unsigned long idlePollDelayMs = 100UL;
+const unsigned long watchdogPollIntervalMs = 50UL;
 
 float currentLeftLength, currentRightLength;
 
@@ -34,17 +43,52 @@ AccelStepper stepperRight(AccelStepper::DRIVER, stepPinRight, dirPinRight);
 const int hallPinLeft = 11;
 const int hallPinRight = 12;
 
-// 定义一个全局计数器来跟踪循环次数
-unsigned long loopCounter = 0;
+bool wasRunning = false;
+bool pendingReset = false;
 
-// 重启阈值设定
-//const unsigned long rebootThreshold = 20; // 设置为需要的重启值
-int rebootThreshold = 20;
+bool readRunSignal();
+bool readResetRequest();
+void sampleResetRequest();
+void delayWithWatchdog(unsigned long durationMs);
+void moveToRandomPosition();
+void moveToRandomStandbyPosition();
+void runOneRandomCycle();
 
 // 函数声明：执行软件重启
 void softwareReboot() {
   // 执行任何必要的清理工作，然后重启
   asm volatile ("  jmp 0");  // 注意：这可能不适用于所有Arduino板
+}
+
+bool readRunSignal() {
+    return digitalRead(triggerPin) == LOW;
+}
+
+bool readResetRequest() {
+    return digitalRead(resetRequestPin) == LOW;
+}
+
+void sampleResetRequest() {
+    if (readResetRequest()) {
+        pendingReset = true;
+    }
+}
+
+void delayWithWatchdog(unsigned long durationMs) {
+    unsigned long startTime = millis();
+
+    while (true) {
+        unsigned long elapsedMs = millis() - startTime;
+        if (elapsedMs >= durationMs) {
+            break;
+        }
+
+        sampleResetRequest();
+        wdt_reset();
+
+        unsigned long remainingMs = durationMs - elapsedMs;
+        delay(remainingMs < watchdogPollIntervalMs ? remainingMs : watchdogPollIntervalMs);
+    }
 }
 
 
@@ -94,7 +138,7 @@ void moveToPositionSynced(float x, float y) {
     Serial.print(x);
     Serial.print(", Y: ");
     Serial.println(y);
-    delay(50);
+    delayWithWatchdog(50);
 
     int leftSteps, rightSteps;
     calculateSteps(x, y, leftSteps, rightSteps);
@@ -106,8 +150,13 @@ void moveToPositionSynced(float x, float y) {
     // 设置左右电机的最大速度，确保两个电机同时到达
     // 速度设置基于各自的运动距离
     float maxSpeed = 400; // 可以根据实际情况调整这个值
-    stepperLeft.setMaxSpeed(maxSpeed * (leftDistance / max(leftDistance, rightDistance)));
-    stepperRight.setMaxSpeed(maxSpeed * (rightDistance / max(leftDistance, rightDistance)));
+    float maxDistance = max(leftDistance, rightDistance);
+    if (maxDistance <= 0.0) {
+        calculateLengths(x, y, currentLeftLength, currentRightLength);
+        return;
+    }
+    stepperLeft.setMaxSpeed(maxSpeed * (leftDistance / maxDistance));
+    stepperRight.setMaxSpeed(maxSpeed * (rightDistance / maxDistance));
 
     // 开始计时
     unsigned long startTime = millis();
@@ -121,6 +170,7 @@ void moveToPositionSynced(float x, float y) {
     while (stepperLeft.distanceToGo() != 0 || stepperRight.distanceToGo() != 0) {
         stepperLeft.run();
         stepperRight.run();
+        sampleResetRequest();
         wdt_reset();
 
         // 检查是否超时
@@ -169,6 +219,7 @@ void autoHome() {
     while (stepperLeft.distanceToGo() != 0 || stepperRight.distanceToGo() != 0) {
         stepperLeft.run();
         stepperRight.run();
+        wdt_reset();
     }
 
     // 复位左电机
@@ -227,27 +278,22 @@ void autoHome() {
 
 //舵机控制绘画机笔头
 void swingServo() {
-  myServo.write(19);  // 设置舵机位置到原点
-  delay(50);  // 等待50毫秒让舵机移动到位置
+  myServo.write(servoRestAngle);  // 设置舵机位置到原点
+  delayWithWatchdog(50);  // 等待50毫秒让舵机移动到位置
 //  Serial.println("zeroed");
 
   myServo.write(54);  // 设置舵机位置到45度
-  delay(355);  // 等待300毫秒让舵机摆动到最大角度并保持一段时间++++++++++++++++++++++++
+  delayWithWatchdog(355);  // 等待300毫秒让舵机摆动到最大角度并保持一段时间++++++++++++++++++++++++
 //  Serial.println("swinged");
 
-  myServo.write(19);  // 将舵机返回到原点
-  delay(500);  // 等待500毫秒让舵机移动到位置
+  myServo.write(servoRestAngle);  // 将舵机返回到原点
+  delayWithWatchdog(500);  // 等待500毫秒让舵机移动到位置
 
   Serial.println("Servoed");
 }
 
-//移动到随机点位并摆动一次笔头
-void moveToRandomPositionAndSwing() {
-
-  // // 在到达指定位置后执行舵机摆动
-  // swingServo();
-  // 生成画布范围内的随机位置
-  Serial.println("moving to random position and swing");
+void moveToRandomPosition() {
+  Serial.println("moving to random position");
   float randX = random(topleftYX[1], topleftYX[1] + pageWidth);
   float randY = random(topleftYX[0], topleftYX[0] + pageHeight);
 
@@ -255,27 +301,31 @@ void moveToRandomPositionAndSwing() {
 //  Serial.print(",");
 //  Serial.println(randY);
 
-
-  // 移动到随机位置
   moveToPositionSynced(randX, randY);
+}
 
-  // 在到达指定位置后执行舵机摆动
+//移动到随机点位并摆动一次笔头
+void moveToRandomPositionAndSwing() {
+  moveToRandomPosition();
   swingServo();
 }
 
-void randomlyTriggerFunctions() {
+void moveToRandomStandbyPosition() {
+  Serial.println("moving to random standby position");
+  moveToRandomPosition();
+}
 
-    int j = random (15,30);
-    for (int i = 0; i<j; i++){
-      delay(3000);
-      wdt_reset();//刷新看门狗计时
-      Serial.println("waiting");
+void runOneRandomCycle() {
+    delayWithWatchdog(random((long)runDelayMinMs, (long)runDelayMaxMs + 1L));
+    if (!readRunSignal()) {
+        return;
     }
-    moveToRandomPositionAndSwing();
 
-    for (int i = 0; i<j; i++){
-      delay(3000);
-      wdt_reset();//刷新看门狗计时   
+    moveToRandomPosition();
+    sampleResetRequest();
+
+    if (readRunSignal()) {
+        swingServo();
     }
 }
 
@@ -327,6 +377,8 @@ void setup() {
     pinMode(dirPinRight, OUTPUT);
     pinMode(8, OUTPUT);  // EN1 for left motor
     pinMode(9, OUTPUT);  // EN2 for right motor
+    pinMode(triggerPin, INPUT_PULLUP);
+    pinMode(resetRequestPin, INPUT_PULLUP);
 
     digitalWrite(8, LOW);  // Enable the left motor
     digitalWrite(9, LOW);  // Enable the right motor
@@ -342,37 +394,52 @@ void setup() {
     while (!Serial) {
       ; // 等待Serial端口连接
     }
-    myServo.write(19); // 舵机初始位置
+    myServo.write(servoRestAngle); // 舵机初始位置
 
     autoHome();  // 执行自动复位功能++++++++
     randomSeed(analogRead(0));
-
-    int rebootThreshold = random(10,20);
-    Serial.print("machine will reset after");
-    Serial.print(rebootThreshold);
-    Serial.println("round");
     wdt_enable(WDTO_8S); //设置看门狗
+    moveToRandomStandbyPosition();
+    myServo.write(servoRestAngle);
+    wasRunning = false;
+    pendingReset = false;
 
     
 }
 
 void loop() {
+  sampleResetRequest();
 
   // moveToInputPosition();
 
-  randomlyTriggerFunctions();
+  if (readRunSignal()) {
+    if (!wasRunning) {
+      Serial.println("RUN started");
+      swingServo();
+      wasRunning = true;
+    }
 
-    // 在每次循环结束时检查是否需要重启
-  loopCounter++; // 增加循环计数
-  Serial.print(loopCounter);
-  Serial.println("round done");
-  if (loopCounter >= rebootThreshold) {
-        // 在重启前移动到画面中心
-    float centerX = machineWidth/2;
-    float centerY = machineHeight / 2;
-    moveToPositionSynced(centerX, centerY); // 移动到中心
-    delay(10000); // 等待移动完成
-    softwareReboot();//+++++++++++++++++++++
+    runOneRandomCycle();
+    wdt_reset();//刷新看门狗计时
+    return;
   }
+
+  if (wasRunning) {
+    Serial.println("RUN stopped; returning to standby");
+    moveToRandomStandbyPosition();
+    myServo.write(servoRestAngle);
+    wasRunning = false;
+  }
+
+  if (pendingReset || readResetRequest()) {
+    Serial.println("Reset request received in IDLE");
+    pendingReset = false;
+    autoHome();
+    moveToRandomStandbyPosition();
+    myServo.write(servoRestAngle);
+    pendingReset = false;
+  }
+
   wdt_reset();//刷新看门狗计时
+  delayWithWatchdog(idlePollDelayMs);
 }

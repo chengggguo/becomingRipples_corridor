@@ -13,7 +13,7 @@
 - `docs/source_files.md`
   原始文件和目标输出文件说明。
 - `docs/device_firmware_trigger_reset_plan.md`
-  装置端 `RUN/IDLE` 与 `AUTOHOME/RESET` 修改方案。
+  装置端 `RUN/IDLE` 与 `AUTOHOME/RESET` 当前实现说明。
 - `docs/wiring_guide.md`
   现场接线指南。
 - `docs/change_log.md`
@@ -39,7 +39,7 @@
 - `docs/source_files.md`
   Original files and generated target files.
 - `docs/device_firmware_trigger_reset_plan.md`
-  Device-side `RUN/IDLE` and `AUTOHOME/RESET` modification plan.
+  Current device-side `RUN/IDLE` and `AUTOHOME/RESET` implementation.
 - `docs/wiring_guide.md`
   On-site wiring guide.
 - `docs/change_log.md`

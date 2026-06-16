@@ -1,27 +1,19 @@
-﻿# Device Firmware Trigger + Reset Plan / 装置端触发与 Reset 修改方案
+# Device Firmware Trigger + Reset Implementation / 装置端触发与 Reset 实现说明
 
 ## 中文
 
-本文档描述 `190cmBar_device.ino` 的下一步修改方案。当前还不是代码实现，而是给装置端修改用的具体设计。
+本文档描述 `190cmBar_device.ino` 当前已经实现的 `RUN/IDLE` 与 `AUTOHOME/RESET` 控制逻辑。
 
 ### 目标
 
-装置端 Arduino 需要从“上电后持续随机运行”改成“由分组控制器控制运行和归零”。
+装置端 Arduino 不再上电后持续随机运行，而是由每排的 Presence Group Controller 通过继电器控制。控制器负责判断房间是否有人，并向每台装置提供两个隔离触点信号：
 
-目标行为如下：
+- `RUN/IDLE`：决定装置是否进入运动状态。
+- `AUTOHOME/RESET`：在无人休息期逐台请求装置重新归零。
 
-1. 上电后执行 `autoHome()`。
-2. 归零完成后移动到一个随机待机点。
-3. 等待 `RUN` 信号。
-4. 第一次收到 `RUN` 时，随机等待 1 到 10 秒。
-5. 随机延迟后，先在当前位置执行一次 `swingServo()`。
-6. 之后循环执行：随机小延迟、移动到随机位置、推布料。
-7. 收到 `IDLE/STOP` 后不急停，完成当前动作，移动到随机待机点并等待。
-8. 在 IDLE 状态下收到 `AUTOHOME/RESET` 请求时，执行 `autoHome()`，然后移动到随机待机点。
+装置端继续保留阻塞式机械动作。也就是说，`STOP` 和 `RESET` 都不会急停正在运行的步进电机或舵机，而是在当前动作边界处理。
 
-### 引脚
-
-装置端建议使用以下输入：
+### 装置端引脚
 
 ```cpp
 const int triggerPin = 2;       // LOW = RUN, HIGH = IDLE
@@ -45,150 +37,123 @@ RESET relay NO  -> Device Arduino D3
 RESET relay COM -> Device Arduino GND
 ```
 
-### 新增辅助函数
+### 开机状态
 
-建议新增以下函数：
+装置开机后按以下顺序执行：
 
-```cpp
-bool readRunSignal() {
-  return digitalRead(triggerPin) == LOW;
-}
+1. 配置步进电机、舵机、Hall 传感器、`D2` 和 `D3`。
+2. 舵机回到休息角度。
+3. 执行 `autoHome()`。
+4. 初始化随机种子。
+5. 启用 8 秒 watchdog。
+6. 移动到一个随机待机点。
+7. 进入 IDLE 监听。
 
-bool readResetRequest() {
-  return digitalRead(resetRequestPin) == LOW;
-}
+这样六台装置在上电归零后不会都停在同一个 Home 点，而是各自停在随机待机位置。
 
-void delayWithWatchdog(unsigned long durationMs) {
-  unsigned long startTime = millis();
-  while (millis() - startTime < durationMs) {
-    wdt_reset();
-    delay(50);
-  }
-}
+### RUN 状态机
 
-void moveToRandomStandbyPosition() {
-  float randX = random(topleftYX[1], topleftYX[1] + pageWidth);
-  float randY = random(topleftYX[0], topleftYX[0] + pageHeight);
-  moveToPositionSynced(randX, randY);
-}
+装置在 IDLE 中持续读取 `D2`。当 `D2 = LOW` 时进入 RUN：
+
+```text
+IDLE
+-> D2 LOW
+-> 在当前随机待机点 swingServo()
+-> 进入循环
 ```
 
-`delayWithWatchdog()` 很重要，因为随机 1 到 10 秒延迟可能超过当前 8 秒 watchdog 时间。
+进入循环后，每一轮动作如下：
 
-### 主循环结构
-
-建议主循环改成这个结构：
-
-```cpp
-void loop() {
-  bool shouldRun = readRunSignal();
-
-  if (shouldRun) {
-    if (!wasRunning) {
-      delayWithWatchdog(random(1000, 10001));
-      swingServo();
-      wasRunning = true;
-    }
-
-    runOneRandomCycle();
-  } else {
-    if (wasRunning) {
-      moveToRandomStandbyPosition();
-      myServo.write(19);
-      wasRunning = false;
-    }
-
-    if (readResetRequest()) {
-      autoHome();
-      moveToRandomStandbyPosition();
-      myServo.write(19);
-    }
-
-    wdt_reset();
-    delay(100);
-  }
-}
+```text
+随机等待 1 到 10 秒
+-> 读取 D2
+-> 如果 D2 HIGH，结束本轮并回到 IDLE 处理
+-> 如果 D2 LOW，移动到下一个随机点
+-> 读取 D2 和 D3
+-> 如果 D2 LOW，swingServo()
+-> 下一轮
 ```
 
-其中 `runOneRandomCycle()` 可以替代现在的 `randomlyTriggerFunctions()`：
+这个顺序避免了“一轮结束后立刻又推一次布料”的重复触发。每次舵机动作之间至少隔着一次随机等待和一次随机移动。
 
-```cpp
-void runOneRandomCycle() {
-  delayWithWatchdog(random(3000, 8001));
-  moveToRandomPositionAndSwing();
-}
+### STOP / IDLE 行为
+
+如果 `D2` 变回 `HIGH`，装置不会急停当前动作。当前动作结束后，下一次检查到 IDLE 时执行：
+
+1. 移动到一个新的随机待机点。
+2. 舵机回到休息角度。
+3. `wasRunning = false`。
+4. 继续监听 `D2` 和 `D3`。
+
+### RESET 行为
+
+`D3 = LOW` 会通过 `sampleResetRequest()` 记为 `pendingReset = true`。这个采样会发生在：
+
+- 主循环顶部。
+- 随机延迟期间。
+- `moveToPositionSynced()` 的步进电机运动循环里。
+- 舵机动作的短延迟期间。
+
+但是实际 `autoHome()` 只在 IDLE 中执行。进入 IDLE 后，如果存在 pending reset 或当前 `D3 = LOW`，装置会执行：
+
+```text
+autoHome()
+-> 移动到随机待机点
+-> 舵机回到休息角度
+-> 清除 pendingReset
 ```
 
-随机等待范围建议先做成常量，方便现场调试。
+这样即使 reset 请求发生在 RUN 动作中，也会被记住，但不会打断正在发生的机械动作。
 
-### 开机行为
+### Watchdog
 
-`setup()` 中 `autoHome()` 后建议立即移动到随机待机点：
+当前 watchdog 是：
 
 ```cpp
-autoHome();
-randomSeed(analogRead(0));
-moveToRandomStandbyPosition();
-wasRunning = false;
+wdt_enable(WDTO_8S);
 ```
 
-这样六台装置开机后不会都停在同一个 Home 点。
+随机等待最长为 10 秒，超过 watchdog 的 8 秒窗口，所以代码使用 `delayWithWatchdog()` 把长延迟拆成约 50ms 的短段，并在每段中刷新 watchdog、采样 `D3`。
 
-### 原周期性重启
+`autoHome()` 和 `moveToPositionSynced()` 的长循环中也会刷新 watchdog。`moveToPositionSynced()` 保留 30 秒运动超时保护；如果超时，会调用 `softwareReboot()` 作为异常恢复。
 
-建议下一版禁用原来的 10 到 20 轮自动软件重启逻辑。
+### 已移除的旧逻辑
 
-原因如下：
+原始代码中“每 10 到 20 轮自动软件重启”的逻辑已经移除。
 
-- 现在 reset/autohome 由分组控制器在无人时逐台安排。
-- 原来的自动重启可能在观众还在场时突然触发，影响作品行为。
-- 当前 `delay(10000)` 与 8 秒 watchdog 有冲突。
+移除原因：
 
-watchdog 建议保留，只用于程序卡死时自动恢复。
+- 现在归零由 Presence Group Controller 在无人时逐台安排。
+- 旧自动重启可能在观众仍在场时触发。
+- 旧逻辑中的 `delay(10000)` 与 8 秒 watchdog 存在冲突。
 
-### 已知限制
+### 和 Presence Group Controller 的关系
 
-本方案继续使用阻塞式动作。
+Presence Group Controller 在检测到无人后会先继续保持 `RUN` 3 分钟。进入 IDLE 后，它会先等待 5 分钟，再给某一台装置发送 2 秒 reset 请求。之后每隔 10 分钟才给下一台装置发送 reset 请求。
 
-这意味着 `STOP` 和 `AUTOHOME/RESET` 不会打断当前移动或舵机动作，而是在当前动作完成后被处理。
-
-这是目前可接受的，因为作品不需要急停。
-
-### 控制器 Reset 间隔
-
-Presence group controller 会逐台发送 reset 请求，但不会连续快速触发三台。当前默认节奏是：房间进入 IDLE 后先等 5 分钟，给一台装置发送 2 秒 reset 请求，然后等待 10 分钟再给下一台发送 reset 请求。
-
-这个间隔给装置端足够时间完成 `autoHome()` 和移动到随机待机点。如果观众在中途进入，分组控制器会取消后续 reset 请求，装置端回到 `RUN` 响应逻辑。
+装置端不需要知道自己是第几台，只需要响应本机的 `D2` 和 `D3`。逐台错峰 reset 的调度由 Presence Group Controller 负责。
 
 ## English
 
-This document describes the next modification plan for `190cmBar_device.ino`. It is a concrete design for the device firmware change, not the implementation yet.
+This document describes the currently implemented `RUN/IDLE` and `AUTOHOME/RESET` behavior in `190cmBar_device.ino`.
 
-### Goals
+### Goal
 
-The device Arduino should change from "run random motion continuously after power-on" to "run and home under the group controller's signals".
+The device Arduino no longer runs random motion continuously after power-on. Instead, each row-level Presence Group Controller drives the devices through relay contacts. The controller decides whether the room is occupied and provides two isolated contact signals to each device:
 
-Target behavior:
+- `RUN/IDLE`: decides whether the device enters motion.
+- `AUTOHOME/RESET`: requests one-at-a-time homing during empty-room idle periods.
 
-1. Run `autoHome()` after power-on.
-2. Move to a random standby point after homing.
-3. Wait for the `RUN` signal.
-4. When `RUN` first arrives, wait for a random delay from 1 to 10 seconds.
-5. After the random delay, run `swingServo()` once at the current position.
-6. Then repeat: short random delay, move to a random position, push the cloth.
-7. After `IDLE/STOP`, do not emergency stop; finish the current action, move to a random standby point, and wait.
-8. When an `AUTOHOME/RESET` request arrives in IDLE, run `autoHome()`, then move to a random standby point.
+The device firmware keeps blocking mechanical actions. In other words, `STOP` and `RESET` do not emergency-stop an active stepper or servo action; they are handled at action boundaries.
 
-### Pins
-
-Recommended device-side inputs:
+### Device Pins
 
 ```cpp
 const int triggerPin = 2;       // LOW = RUN, HIGH = IDLE
 const int resetRequestPin = 3;  // LOW = AUTOHOME/RESET request
 ```
 
-Both pins should use internal pull-ups:
+Both pins use internal pull-ups:
 
 ```cpp
 pinMode(triggerPin, INPUT_PULLUP);
@@ -205,117 +170,98 @@ RESET relay NO  -> Device Arduino D3
 RESET relay COM -> Device Arduino GND
 ```
 
-### New Helpers
+### Startup State
 
-Recommended new helper functions:
+After power-on, the device runs this sequence:
 
-```cpp
-bool readRunSignal() {
-  return digitalRead(triggerPin) == LOW;
-}
+1. Configure steppers, servo, Hall sensors, `D2`, and `D3`.
+2. Move the servo to its rest angle.
+3. Run `autoHome()`.
+4. Initialize the random seed.
+5. Enable the 8-second watchdog.
+6. Move to a random standby point.
+7. Enter IDLE listening.
 
-bool readResetRequest() {
-  return digitalRead(resetRequestPin) == LOW;
-}
+This prevents all six devices from staying at the same Home point after startup and homing.
 
-void delayWithWatchdog(unsigned long durationMs) {
-  unsigned long startTime = millis();
-  while (millis() - startTime < durationMs) {
-    wdt_reset();
-    delay(50);
-  }
-}
+### RUN State Machine
 
-void moveToRandomStandbyPosition() {
-  float randX = random(topleftYX[1], topleftYX[1] + pageWidth);
-  float randY = random(topleftYX[0], topleftYX[0] + pageHeight);
-  moveToPositionSynced(randX, randY);
-}
+While in IDLE, the device continuously reads `D2`. When `D2 = LOW`, it enters RUN:
+
+```text
+IDLE
+-> D2 LOW
+-> swingServo() at current random standby point
+-> enter loop
 ```
 
-`delayWithWatchdog()` is important because the random 1-to-10-second delay can exceed the current 8-second watchdog timeout.
+After that, each motion cycle runs as follows:
 
-### Main Loop Shape
-
-The main loop should follow this shape:
-
-```cpp
-void loop() {
-  bool shouldRun = readRunSignal();
-
-  if (shouldRun) {
-    if (!wasRunning) {
-      delayWithWatchdog(random(1000, 10001));
-      swingServo();
-      wasRunning = true;
-    }
-
-    runOneRandomCycle();
-  } else {
-    if (wasRunning) {
-      moveToRandomStandbyPosition();
-      myServo.write(19);
-      wasRunning = false;
-    }
-
-    if (readResetRequest()) {
-      autoHome();
-      moveToRandomStandbyPosition();
-      myServo.write(19);
-    }
-
-    wdt_reset();
-    delay(100);
-  }
-}
+```text
+wait randomly from 1 to 10 seconds
+-> read D2
+-> if D2 HIGH, end this cycle and return to IDLE handling
+-> if D2 LOW, move to the next random point
+-> read D2 and D3
+-> if D2 LOW, swingServo()
+-> next cycle
 ```
 
-`runOneRandomCycle()` can replace the current `randomlyTriggerFunctions()`:
+This avoids the double-trigger problem where one completed cycle would immediately cause another cloth push. Each servo action is separated by at least one random wait and one random movement.
 
-```cpp
-void runOneRandomCycle() {
-  delayWithWatchdog(random(3000, 8001));
-  moveToRandomPositionAndSwing();
-}
+### STOP / IDLE Behavior
+
+If `D2` returns to `HIGH`, the device does not emergency-stop the current action. After the current action ends, the next IDLE check runs:
+
+1. Move to a new random standby point.
+2. Return the servo to its rest angle.
+3. Set `wasRunning = false`.
+4. Continue listening to `D2` and `D3`.
+
+### RESET Behavior
+
+`D3 = LOW` is stored by `sampleResetRequest()` as `pendingReset = true`. Sampling happens during:
+
+- The top of the main loop.
+- Random delay periods.
+- The `moveToPositionSynced()` stepper movement loop.
+- The short delays inside the servo action.
+
+However, the actual `autoHome()` only runs in IDLE. When the device reaches IDLE and either has a pending reset or currently reads `D3 = LOW`, it runs:
+
+```text
+autoHome()
+-> move to random standby point
+-> return servo to rest angle
+-> clear pendingReset
 ```
 
-The random delay ranges should be constants so they are easy to tune on site.
+This means a reset request that arrives during RUN is remembered, but it does not interrupt the active mechanical action.
 
-### Startup Behavior
+### Watchdog
 
-After `autoHome()` in `setup()`, the device should immediately move to a random standby point:
+The current watchdog is:
 
 ```cpp
-autoHome();
-randomSeed(analogRead(0));
-moveToRandomStandbyPosition();
-wasRunning = false;
+wdt_enable(WDTO_8S);
 ```
 
-This prevents all six devices from staying at the same Home point after startup.
+The random wait can be as long as 10 seconds, longer than the 8-second watchdog window. Therefore the code uses `delayWithWatchdog()` to split long waits into roughly 50ms chunks, refreshing the watchdog and sampling `D3` in each chunk.
 
-### Periodic Reset
+The long loops in `autoHome()` and `moveToPositionSynced()` also refresh the watchdog. `moveToPositionSynced()` keeps its 30-second movement timeout; on timeout, it calls `softwareReboot()` as abnormal recovery.
 
-The next version should disable the original automatic software reboot after 10 to 20 cycles.
+### Removed Old Logic
+
+The original "automatic software reboot every 10 to 20 rounds" logic has been removed.
 
 Reasons:
 
-- Reset/autohome is now scheduled one device at a time by the group controller when the room is empty.
-- The old automatic reboot may trigger while visitors are present, interrupting the work's behavior.
-- The current `delay(10000)` conflicts with the 8-second watchdog timeout.
+- Homing is now scheduled one device at a time by the Presence Group Controller while the room is empty.
+- The old automatic reboot could trigger while visitors are still present.
+- The old `delay(10000)` conflicted with the 8-second watchdog.
 
-The watchdog should stay enabled and only act as recovery if the program hangs.
+### Relationship to the Presence Group Controller
 
-### Known Limitation
+After the Presence Group Controller sees no presence, it keeps `RUN` active for 3 more minutes. After entering IDLE, it waits 5 minutes, then sends a 2-second reset request to one device. It then waits 10 minutes before sending a reset request to the next device.
 
-This plan keeps the blocking motion style.
-
-This means `STOP` and `AUTOHOME/RESET` will not interrupt the current movement or servo action; they are handled after the current action completes.
-
-This is acceptable for now because the installation does not require emergency stop behavior.
-
-### Controller Reset Spacing
-
-The presence group controller sends reset requests one device at a time, but it does not trigger all three devices quickly. The current default timing is: after the room enters IDLE, wait 5 minutes, send a 2-second reset request to one device, then wait 10 minutes before sending a reset request to the next device.
-
-This gap gives the device enough time to finish `autoHome()` and move to a random standby point. If visitors enter during the sequence, the group controller cancels the remaining reset requests and the device returns to `RUN` response behavior.
+The device firmware does not need to know which device number it is. It only responds to its own `D2` and `D3`. The one-at-a-time staggered reset schedule is handled by the Presence Group Controller.

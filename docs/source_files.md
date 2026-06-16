@@ -16,7 +16,7 @@ D:/work/ownProjects/CurrentProjects/BecomingRipples/offline/proposal1/prototype/
 C:/Users/db/Downloads/网页下载/becoming_ripples_control_plan.md
 ```
 
-### 计划本地输出
+### 当前本地输出
 
 修改后的装置固件工作区：
 
@@ -48,7 +48,7 @@ Control plan document:
 C:/Users/db/Downloads/网页下载/becoming_ripples_control_plan.md
 ```
 
-### Planned Local Outputs
+### Current Local Outputs
 
 Modified device firmware workspace:
 

@@ -20,6 +20,10 @@
 - 新增 `docs/wiring_guide.md`，作为现场接线指南。
 - 将所有 Markdown 文档重排为“完整中文在前，完整英文在后”的结构。
 - 为 presence group controller 增加 500ms 本地传感器 active debounce，减少瞬时误触发。
+- 将 `190cmBar_device.ino` 改为由 `D2 RUN/IDLE` 和 `D3 AUTOHOME/RESET` 控制的状态机。
+- 移除装置端旧的 10 到 20 轮自动软件重启逻辑，改为由 presence group controller 在 IDLE 中逐台 reset。
+- 为装置端随机等待、舵机动作和步进移动加入 watchdog-safe 延迟与 reset 请求记忆。
+- 更新装置端 README 和触发/reset 文档，使其描述当前实现而不是未来计划。
 
 ## English
 
@@ -41,3 +45,7 @@ This file records intentional changes to the toolbox and Arduino sketches.
 - Added `docs/wiring_guide.md` as an on-site wiring guide.
 - Reorganized all Markdown documents so the full Chinese version appears first and the full English version appears after it.
 - Added a 500ms local sensor active debounce to the presence group controller to reduce momentary false triggers.
+- Changed `190cmBar_device.ino` into a state machine controlled by `D2 RUN/IDLE` and `D3 AUTOHOME/RESET`.
+- Removed the old device-side automatic software reboot after 10 to 20 rounds; routine reset is now requested one device at a time by the presence group controller during IDLE.
+- Added watchdog-safe delays and reset-request latching during device-side random waits, servo actions, and stepper movement.
+- Updated the device README and trigger/reset document so they describe the current implementation instead of a future plan.

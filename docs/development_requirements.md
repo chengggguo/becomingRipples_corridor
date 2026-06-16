@@ -9,23 +9,24 @@
 1. 基于原始 `190cmBar_code.ino` 修改的装置端固件。
 2. 用于每排 `Presence Group Controller` 的新 Arduino 固件。
 
-### 装置端固件目标
+### 装置端固件当前目标
 
 原始 190cmBar 装置现在会持续随机运动。修改后，它应该改为由外部信号触发运行。
 
 装置端目标包括：
 
-- 添加 `triggerPin = 2`。
+- 添加 `triggerPin = 2` 和 `resetRequestPin = 3`。
 - 将 `triggerPin` 设置为 `INPUT_PULLUP`。
+- 将 `resetRequestPin` 设置为 `INPUT_PULLUP`。
 - `D2 = LOW` 表示 `RUN`。
 - `D2 = HIGH` 表示 `IDLE`。
 - 开机后运行 `autoHome()`，然后移动到随机待机点。
-- 第一次收到 `RUN` 时，先随机延迟，再在当前位置舵机动作一次，然后进入原有随机运动逻辑。
+- 第一次收到 `RUN` 时，先在当前位置舵机动作一次，然后进入“随机等待 1 到 10 秒、移动到随机点、检查信号、再决定是否舵机动作”的循环。
 - 当 `RUN` 变为 `IDLE` 时，不急停；完成当前阻塞动作后，移动到随机待机点，舵机回初始角度，并等待下一次触发。
 - 在 IDLE 状态下响应 `AUTOHOME/RESET` 请求。
 - 禁用旧的 LED 随机路径。
-- 修复局部 `rebootThreshold` 遮蔽问题。
-- 建议禁用原来的 10 到 20 轮自动软件重启逻辑，由分组控制器在无人时逐台安排 reset/autohome。
+- 移除局部 `rebootThreshold` 遮蔽问题所在的旧周期性重启逻辑。
+- 禁用原来的 10 到 20 轮自动软件重启逻辑，由分组控制器在无人时逐台安排 reset/autohome。
 
 ### 分组控制器目标
 
@@ -60,22 +61,23 @@ There are two code deliverables:
 1. Modified device firmware based on the original `190cmBar_code.ino`.
 2. New Arduino firmware for each row-level `Presence Group Controller`.
 
-### Device Firmware Target
+### Current Device Firmware Target
 
 The original 190cmBar device currently runs random movement continuously. It should become externally triggered.
 
 Device-side targets:
 
-- Add `triggerPin = 2`.
+- Add `triggerPin = 2` and `resetRequestPin = 3`.
 - Configure `triggerPin` as `INPUT_PULLUP`.
+- Configure `resetRequestPin` as `INPUT_PULLUP`.
 - Treat `D2 = LOW` as `RUN`.
 - Treat `D2 = HIGH` as `IDLE`.
 - On boot, run `autoHome()`, then move to a random standby position.
-- When `RUN` first arrives, wait a short random delay, swing the servo once at the current position, then enter the original random movement behavior.
+- When `RUN` first arrives, swing the servo once at the current position, then enter the cycle of "wait randomly from 1 to 10 seconds, move to a random point, check the signals, and then decide whether to swing the servo again".
 - When `RUN` becomes `IDLE`, do not emergency stop; finish the current blocking action, move to a random standby position, return the servo to its initial angle, and wait for the next trigger.
 - Respond to `AUTOHOME/RESET` requests while in IDLE.
 - Disable the old LED random path.
-- Fix the local `rebootThreshold` shadowing bug.
+- Remove the old periodic reboot logic that contained the local `rebootThreshold` shadowing bug.
 - Disable the old automatic software reboot after 10 to 20 cycles, and let the group controller schedule reset/autohome one device at a time while the room is empty.
 
 ### Presence Group Controller Target
