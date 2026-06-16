@@ -21,3 +21,7 @@ This file records intentional changes to the toolbox and Arduino sketches.
   Rewrote project documentation as bilingual Chinese/English docs.
 - 将 presence group controller 的 Bus 语义从瞬时 `localPresence` 改为本地 3 分钟 `localRunRequest`。
   Changed the presence group controller bus semantics from instant `localPresence` to local 3-minute `localRunRequest`.
+- 将 presence group controller 扩展为 6 路继电器：3 路 `RUN`，3 路逐台 `AUTOHOME/RESET` 请求。
+  Expanded the presence group controller to six relays: three `RUN` relays and three one-at-a-time `AUTOHOME/RESET` request relays.
+- 新增装置端 `RUN/IDLE` 与 `AUTOHOME/RESET` 具体修改方案文档。
+  Added a concrete device-side `RUN/IDLE` and `AUTOHOME/RESET` modification plan document.

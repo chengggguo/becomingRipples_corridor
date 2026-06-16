@@ -10,8 +10,8 @@ Each group controller has:
 
 - 一个本地 LD2410C 或类似 presence 传感器。
   One local LD2410C or similar presence sensor.
-- 三路下游继电器输出。
-  Three downstream relay channels.
+- 六路下游继电器输出：三路 `RUN`，三路 `AUTOHOME/RESET` 请求。
+  Six downstream relay channels: three for `RUN`, and three for `AUTOHOME/RESET` requests.
 - 一条连接到另一块 group controller 的 Bus。
   One cross-controller bus link to the other group controller.
 
@@ -27,14 +27,23 @@ local presence OR remote presence
 
 ## Local Row Path / 本排信号路径
 
-每一排内部的触发路径如下。
-Inside each row, the trigger path is:
+每一排内部的 `RUN` 触发路径如下。
+Inside each row, the `RUN` trigger path is:
 
 ```text
 LD2410C OUT
 -> row-level group Arduino
--> three relay channels
+-> three RUN relay channels
 -> three device Arduinos' D2 trigger pins
+```
+
+每一排内部的 reset 请求路径如下。
+Inside each row, the reset request path is:
+
+```text
+idle reset scheduler
+-> three reset request relay channels
+-> three device Arduinos' D3 reset request pins
 ```
 
 ## Row-Level Relay Control / 本排继电器控制
@@ -42,31 +51,46 @@ LD2410C OUT
 每块 row-level Arduino 直接读取自己的本地 presence 传感器。
 Each row-level Arduino directly reads its local presence sensor.
 
-然后它控制三路继电器输入。
-It then controls three relay inputs:
+然后它控制六路继电器输入。
+It then controls six relay inputs:
 
 ```text
-Group Arduino D5 -> Relay IN1
-Group Arduino D6 -> Relay IN2
-Group Arduino D7 -> Relay IN3
+Group Arduino D5  -> Relay IN1 RUN for device 1
+Group Arduino D6  -> Relay IN2 RUN for device 2
+Group Arduino D7  -> Relay IN3 RUN for device 3
+Group Arduino D8  -> Relay IN4 RESET request for device 1
+Group Arduino D9  -> Relay IN5 RESET request for device 2
+Group Arduino D10 -> Relay IN6 RESET request for device 3
 ```
 
 继电器触点侧连接到对应装置。
 The relay contact side connects to each corresponding device:
 
 ```text
-Relay CH1 NO  -> Device 1 Arduino D2
+Relay CH1 NO  -> Device 1 Arduino D2 RUN input
 Relay CH1 COM -> Device 1 Arduino GND
 
-Relay CH2 NO  -> Device 2 Arduino D2
+Relay CH2 NO  -> Device 2 Arduino D2 RUN input
 Relay CH2 COM -> Device 2 Arduino GND
 
-Relay CH3 NO  -> Device 3 Arduino D2
+Relay CH3 NO  -> Device 3 Arduino D2 RUN input
 Relay CH3 COM -> Device 3 Arduino GND
+
+Relay CH4 NO  -> Device 1 Arduino D3 RESET request input
+Relay CH4 COM -> Device 1 Arduino GND
+
+Relay CH5 NO  -> Device 2 Arduino D3 RESET request input
+Relay CH5 COM -> Device 2 Arduino GND
+
+Relay CH6 NO  -> Device 3 Arduino D3 RESET request input
+Relay CH6 COM -> Device 3 Arduino GND
 ```
 
 继电器闭合时，装置自己的 `D2` 被拉到本机 `GND`，所以装置读到 `LOW` 并运行。
 When the relay closes, D2 is pulled to the device's own GND, so the device reads `LOW` and runs.
+
+Reset 请求继电器闭合时，装置自己的 `D3` 被拉到本机 `GND`，所以装置可以在安全的 IDLE 状态下执行 `autoHome()` 并回到随机待机点。
+When a reset request relay closes, the device's own `D3` is pulled to its own GND, so the device can run `autoHome()` and return to a random standby point when it is safely in IDLE.
 
 ## Cross-Controller Bus / 控制器之间的 Bus
 

@@ -18,6 +18,10 @@
   原始文件和目标输出文件说明。
   Original files and generated target files.
 
+- `docs/device_firmware_trigger_reset_plan.md`
+  装置端 `RUN/IDLE` 与 `AUTOHOME/RESET` 修改方案。
+  Device-side `RUN/IDLE` and `AUTOHOME/RESET` modification plan.
+
 - `docs/change_log.md`
   项目变更记录。
   Project change log.

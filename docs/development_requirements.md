@@ -51,8 +51,12 @@ Each group controller should:
   Treat room presence as `local presence OR remote presence`.
 - 在最后一次房间级 presence 之后，让本排三台装置继续 `RUN` 3 分钟。
   Keep its three downstream devices in `RUN` for 3 minutes after the last room-level presence.
-- 用 `D5`、`D6`、`D7` 分别控制三路继电器。
-  Control three relay channels separately, using `D5`, `D6`, and `D7`.
+- 用 `D5`、`D6`、`D7` 分别控制三路 `RUN` 继电器。
+  Control three `RUN` relay channels separately, using `D5`, `D6`, and `D7`.
+- 用 `D8`、`D9`、`D10` 分别控制三路 `AUTOHOME/RESET` 请求继电器。
+  Control three `AUTOHOME/RESET` request relay channels separately, using `D8`, `D9`, and `D10`.
+- 在房间进入 IDLE 后等待一段时间，再逐台发送 reset 请求；每个无人周期每台最多一次。
+  After the room enters IDLE, wait for a configurable idle delay and send reset requests one device at a time; each device receives at most one request per idle period.
 - 用常量配置继电器触发极性。
   Allow relay active polarity to be configured with a constant.
 
