@@ -3,6 +3,12 @@
 这个文件夹用于保存新的 row-level Arduino sketch。
 This folder is for the new row-level Arduino sketch.
 
+## Overview / 功能概述
+
+这份代码运行在每排一块 Arduino Nano R3 上，用来把“房间里是否有人”转换成三台 190cmBar 装置可以理解的 `RUN/IDLE` 触发信号。每块控制器读取自己这一侧的 LD2410C presence 传感器，并用三路继电器分别控制本排三台装置；同时，两块控制器通过 `D3` 上的一根 active-low Bus 共享本地 3 分钟 `RUN` 请求。这样无论观众先被哪一侧传感器检测到，两排控制器都会启动各自的三路继电器，最终让六台装置一起运行。继电器触点侧只像“外部按钮”一样短接每台装置自己的 `D2` 和 `GND`，因此装置之间不需要共地。
+
+This sketch runs on one Arduino Nano R3 per row. Its job is to convert room-level presence into `RUN/IDLE` trigger signals that three local 190cmBar devices can understand. Each controller reads the LD2410C presence sensor on its side and drives three relay channels for the three devices in that row. At the same time, the two controllers share their local 3-minute `RUN` requests through an active-low bus on `D3`. This means that whichever sensor detects the visitor first, both row controllers activate their own relay channels, so all six devices run together. On the relay contact side, each relay behaves like an isolated external button that shorts one device's own `D2` to its own `GND`, so the device Arduinos do not need to share ground with each other.
+
 ## Current Sketch / 当前 Sketch
 
 - `presence_group_controller.ino`
