@@ -25,3 +25,5 @@ This file records intentional changes to the toolbox and Arduino sketches.
   Expanded the presence group controller to six relays: three `RUN` relays and three one-at-a-time `AUTOHOME/RESET` request relays.
 - 新增装置端 `RUN/IDLE` 与 `AUTOHOME/RESET` 具体修改方案文档。
   Added a concrete device-side `RUN/IDLE` and `AUTOHOME/RESET` modification plan document.
+- 将同排两台装置 reset 请求之间的默认间隔从 1 分钟改为 10 分钟。
+  Changed the default gap between reset requests for devices in the same row from 1 minute to 10 minutes.

@@ -26,7 +26,7 @@ const bool RELAY_ACTIVE_LOW = true;
 const unsigned long holdTimeMs = 180000UL;
 const unsigned long resetIdleDelayMs = 300000UL;
 const unsigned long resetPulseMs = 2000UL;
-const unsigned long resetBetweenDevicesMs = 60000UL;
+const unsigned long resetBetweenDevicesMs = 600000UL;
 const unsigned long resetStartOffsetMs = 0UL;
 const unsigned long loopDelayMs = 20UL;
 

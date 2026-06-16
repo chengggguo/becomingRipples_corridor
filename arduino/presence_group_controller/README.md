@@ -83,8 +83,8 @@ Relay CH6 COM -> Device 3 Arduino GND
   `resetIdleDelayMs`: how long to wait after the room enters IDLE before one-at-a-time reset requests begin. The default is 5 minutes.
 - `resetPulseMs`：每个 reset 请求继电器保持吸合的时间，默认 2 秒。
   `resetPulseMs`: how long each reset request relay stays active. The default is 2 seconds.
-- `resetBetweenDevicesMs`：同一排两台装置 reset 请求之间的间隔，默认 1 分钟。
-  `resetBetweenDevicesMs`: the gap between reset requests for devices in the same row. The default is 1 minute.
+- `resetBetweenDevicesMs`：同一排两台装置 reset 请求之间的间隔，默认 10 分钟。
+  `resetBetweenDevicesMs`: the gap between reset requests for devices in the same row. The default is 10 minutes.
 - `resetStartOffsetMs`：给某一排增加额外 reset 起始延迟，用来错开两排的 reset 时间。
   `resetStartOffsetMs`: an extra reset start delay for one row, useful for staggering reset timing between the two rows.
 
@@ -100,6 +100,6 @@ Each controller only publishes its own local hold state to the bus. It does not 
 
 ## Reset Request Scheduler / Reset 请求调度
 
-当 `roomRunActive` 为 false，也就是本地和远端都不再请求 `RUN` 时，控制器会启动空闲计时。默认等待 5 分钟后，它会向本排装置逐台发送 reset 请求：每次只打开一路 reset 继电器，保持 2 秒，然后等待 1 分钟再处理下一台。一轮无人周期内，每台装置最多收到一次 reset 请求；如果中途重新检测到观众，调度会立即取消，所有 reset 继电器关闭，`RUN` 继电器恢复正常响应。
+当 `roomRunActive` 为 false，也就是本地和远端都不再请求 `RUN` 时，控制器会启动空闲计时。默认等待 5 分钟后，它会向本排装置逐台发送 reset 请求：每次只打开一路 reset 继电器，保持 2 秒，然后等待 10 分钟再处理下一台，让上一台装置有足够时间完成 `autoHome()` 和回到待机点。一轮无人周期内，每台装置最多收到一次 reset 请求；如果中途重新检测到观众，调度会立即取消，所有 reset 继电器关闭，`RUN` 继电器恢复正常响应。
 
-When `roomRunActive` is false, meaning neither the local nor remote side is requesting `RUN`, the controller starts an idle timer. After the default 5-minute delay, it sends reset requests to the local devices one at a time: one reset relay turns on for 2 seconds, then the controller waits 1 minute before handling the next device. During one idle period, each local device receives at most one reset request. If a visitor is detected during the sequence, the reset scheduler is cancelled immediately, all reset relays turn off, and the `RUN` relays resume normal response.
+When `roomRunActive` is false, meaning neither the local nor remote side is requesting `RUN`, the controller starts an idle timer. After the default 5-minute delay, it sends reset requests to the local devices one at a time: one reset relay turns on for 2 seconds, then the controller waits 10 minutes before handling the next device, giving the previous device enough time to finish `autoHome()` and return to standby. During one idle period, each local device receives at most one reset request. If a visitor is detected during the sequence, the reset scheduler is cancelled immediately, all reset relays turn off, and the `RUN` relays resume normal response.

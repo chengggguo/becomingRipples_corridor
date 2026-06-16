@@ -181,3 +181,13 @@ This means `STOP` and `AUTOHOME/RESET` will not interrupt the current movement o
 
 这是目前可接受的，因为作品不需要急停。
 This is acceptable for now because the installation does not require emergency stop behavior.
+
+## Controller Reset Spacing / 控制器 Reset 间隔
+
+Presence group controller 会逐台发送 reset 请求，但不会连续快速触发三台。当前默认节奏是：房间进入 IDLE 后先等 5 分钟，给一台装置发送 2 秒 reset 请求，然后等待 10 分钟再给下一台发送 reset 请求。
+
+The presence group controller sends reset requests one device at a time, but it does not trigger all three devices quickly. The current default timing is: after the room enters IDLE, wait 5 minutes, send a 2-second reset request to one device, then wait 10 minutes before sending a reset request to the next device.
+
+这个间隔给装置端足够时间完成 `autoHome()` 和移动到随机待机点。如果观众在中途进入，分组控制器会取消后续 reset 请求，装置端回到 `RUN` 响应逻辑。
+
+This gap gives the device enough time to finish `autoHome()` and move to a random standby point. If visitors enter during the sequence, the group controller cancels the remaining reset requests and the device returns to `RUN` response behavior.
