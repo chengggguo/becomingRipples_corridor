@@ -24,6 +24,9 @@
 - 移除装置端旧的 10 到 20 轮自动软件重启逻辑，改为由 presence group controller 在 IDLE 中逐台 reset。
 - 为装置端随机等待、舵机动作和步进移动加入 watchdog-safe 延迟与 reset 请求记忆。
 - 更新装置端 README 和触发/reset 文档，使其描述当前实现而不是未来计划。
+- 更新 `autoHome()`：坐标已知时先回到 HomePoint，再安全反向和 Hall 寻零，并为 homing 增加超时后 watchdog 重启。
+- 将装置端异常 `softwareReboot()` 改为通过 watchdog 触发重启。
+- 为两排 Presence Group Controller 增加 A/B `resetStartOffsetMs` 错峰配置说明。
 
 ## English
 
@@ -49,3 +52,6 @@ This file records intentional changes to the toolbox and Arduino sketches.
 - Removed the old device-side automatic software reboot after 10 to 20 rounds; routine reset is now requested one device at a time by the presence group controller during IDLE.
 - Added watchdog-safe delays and reset-request latching during device-side random waits, servo actions, and stepper movement.
 - Updated the device README and trigger/reset document so they describe the current implementation instead of a future plan.
+- Updated `autoHome()`: when the coordinate is known, move back to HomePoint before safety reverse and Hall seeking, and add homing timeout recovery through watchdog reboot.
+- Changed device-side abnormal `softwareReboot()` to trigger reboot through the watchdog.
+- Added A/B `resetStartOffsetMs` staggered-reset setup notes for the two Presence Group Controllers.

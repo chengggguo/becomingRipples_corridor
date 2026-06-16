@@ -28,7 +28,7 @@ D12 <- right Hall sensor
 
 ### 开机行为
 
-装置上电后会先执行 `autoHome()`，完成左右步进电机归零。归零完成后，装置会移动到画布范围内的一个随机待机点，然后保持舵机在休息角度，等待 `D2 = LOW` 的 `RUN` 信号。
+装置上电后会先执行 `autoHome()`，完成左右步进电机归零。第一次开机时坐标还未知，所以会跳过回 HomePoint 的预移动，直接执行安全反向和 Hall 寻零。归零完成后，装置会移动到画布范围内的一个随机待机点，然后保持舵机在休息角度，等待 `D2 = LOW` 的 `RUN` 信号。
 
 ### RUN 行为
 
@@ -46,10 +46,12 @@ D12 <- right Hall sensor
 
 `D3 = LOW` 会被记录为一次 pending reset 请求。装置不会在 RUN 动作中立即归零，而是在进入 IDLE 后执行：
 
-1. `autoHome()`。
-2. 移动到一个新的随机待机点。
-3. 舵机回到休息角度。
-4. 继续等待下一次 `RUN`。
+1. 如果当前位置坐标已知，先移动回 `HomePointX/HomePointY`，也就是画面顶部中心。
+2. 左右电机按原安全方向各自移动约 3000 steps，离开 Hall 触发区。
+3. 左右电机分别寻找 Hall 触发点，并重新校准坐标。
+4. 移动到一个新的随机待机点。
+5. 舵机回到休息角度。
+6. 继续等待下一次 `RUN`。
 
 这样 reset 可以由 Presence Group Controller 在无人时逐台触发，不会和观众在场时的 RUN 动作直接冲突。
 
@@ -57,7 +59,9 @@ D12 <- right Hall sensor
 
 当前 watchdog 仍然使用 `WDTO_8S`。所有 1 到 10 秒随机等待都通过 `delayWithWatchdog()` 分段延迟并刷新 watchdog，因此不会因为等待超过 8 秒而误复位。
 
-原始代码中“每 10 到 20 轮自动软件重启”的逻辑已经移除。现在的日常归零由 Presence Group Controller 的逐台 reset 请求负责。`softwareReboot()` 仍然保留，只用于 `moveToPositionSynced()` 运动超时后的异常恢复。
+原始代码中“每 10 到 20 轮自动软件重启”的逻辑已经移除。现在的日常归零由 Presence Group Controller 的逐台 reset 请求负责。`softwareReboot()` 仍然保留，只用于 `moveToPositionSynced()` 运动超时后的异常恢复；它现在通过 watchdog 触发重启。
+
+`autoHome()` 现在有超时保护：安全反向移动默认 15 秒超时，单侧 Hall 寻零默认 20 秒超时。如果超时，代码会关闭步进电机使能，等待 10 秒，然后用 watchdog 触发重启。重启后会重新从开机流程开始尝试归零。
 
 ### 已知限制
 
@@ -91,7 +95,7 @@ Both `D2` and `D3` use `INPUT_PULLUP`. When a relay closes, it pulls the corresp
 
 ### Startup Behavior
 
-After power-on, the device first runs `autoHome()` to home both stepper motors. After homing, it moves to a random standby point inside the drawing area, keeps the servo at its rest angle, and waits for `D2 = LOW`.
+After power-on, the device first runs `autoHome()` to home both stepper motors. On the first boot, the coordinate position is still unknown, so the firmware skips the HomePoint pre-move and directly performs the safety reverse and Hall seeking steps. After homing, it moves to a random standby point inside the drawing area, keeps the servo at its rest angle, and waits for `D2 = LOW`.
 
 ### RUN Behavior
 
@@ -109,10 +113,12 @@ This means `STOP` does not emergency-stop the current movement. If the stop sign
 
 `D3 = LOW` is stored as a pending reset request. The device does not home immediately during RUN. After it reaches IDLE, it performs:
 
-1. `autoHome()`.
-2. Move to a new random standby point.
-3. Return the servo to its rest angle.
-4. Wait for the next `RUN`.
+1. If the current coordinate is known, move back to `HomePointX/HomePointY`, the top-center point of the drawing area.
+2. Move the left and right motors about 3000 steps in their existing safety-reverse directions, away from the Hall trigger area.
+3. Seek the left and right Hall trigger points and recalibrate the coordinate system.
+4. Move to a new random standby point.
+5. Return the servo to its rest angle.
+6. Wait for the next `RUN`.
 
 This lets the Presence Group Controller reset devices one at a time while the room is empty, without directly conflicting with visitor-triggered RUN behavior.
 
@@ -120,7 +126,9 @@ This lets the Presence Group Controller reset devices one at a time while the ro
 
 The watchdog still uses `WDTO_8S`. All 1-to-10-second random waits go through `delayWithWatchdog()`, which breaks the wait into short chunks and refreshes the watchdog, so waits longer than 8 seconds do not cause accidental resets.
 
-The original "automatic software reboot every 10 to 20 rounds" logic has been removed. Routine homing is now handled by one-at-a-time reset requests from the Presence Group Controller. `softwareReboot()` is still kept only as abnormal recovery after a `moveToPositionSynced()` movement timeout.
+The original "automatic software reboot every 10 to 20 rounds" logic has been removed. Routine homing is now handled by one-at-a-time reset requests from the Presence Group Controller. `softwareReboot()` is still kept only as abnormal recovery after a `moveToPositionSynced()` movement timeout; it now triggers reboot through the watchdog.
+
+`autoHome()` now has timeout protection: the safety reverse move defaults to a 15-second timeout, and each Hall seek defaults to a 20-second timeout. If a timeout happens, the firmware disables the stepper enables, waits 10 seconds, and then uses the watchdog to reboot. After reboot, the device starts from the normal startup sequence and attempts homing again.
 
 ### Known Limitation
 

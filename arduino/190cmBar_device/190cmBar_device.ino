@@ -32,6 +32,9 @@ const unsigned long runDelayMinMs = 1000UL;
 const unsigned long runDelayMaxMs = 10000UL;
 const unsigned long idlePollDelayMs = 100UL;
 const unsigned long watchdogPollIntervalMs = 50UL;
+const unsigned long homingSafetyMoveTimeoutMs = 15000UL;
+const unsigned long homingSeekTimeoutMs = 20000UL;
+const unsigned long homingFailurePauseMs = 10000UL;
 
 float currentLeftLength, currentRightLength;
 
@@ -45,19 +48,23 @@ const int hallPinRight = 12;
 
 bool wasRunning = false;
 bool pendingReset = false;
+bool hasKnownPosition = false;
 
 bool readRunSignal();
 bool readResetRequest();
 void sampleResetRequest();
 void delayWithWatchdog(unsigned long durationMs);
+void watchdogReboot();
+void disableSteppers();
+void handleAutoHomeTimeout(const char *phase);
+bool runSteppersUntilDone(unsigned long timeoutMs);
 void moveToRandomPosition();
 void moveToRandomStandbyPosition();
 void runOneRandomCycle();
 
 // 函数声明：执行软件重启
 void softwareReboot() {
-  // 执行任何必要的清理工作，然后重启
-  asm volatile ("  jmp 0");  // 注意：这可能不适用于所有Arduino板
+  watchdogReboot();
 }
 
 bool readRunSignal() {
@@ -89,6 +96,41 @@ void delayWithWatchdog(unsigned long durationMs) {
         unsigned long remainingMs = durationMs - elapsedMs;
         delay(remainingMs < watchdogPollIntervalMs ? remainingMs : watchdogPollIntervalMs);
     }
+}
+
+void watchdogReboot() {
+    wdt_enable(WDTO_15MS);
+    while (true) {
+    }
+}
+
+void disableSteppers() {
+    digitalWrite(8, HIGH);
+    digitalWrite(9, HIGH);
+}
+
+void handleAutoHomeTimeout(const char *phase) {
+    Serial.print("AutoHome timeout: ");
+    Serial.println(phase);
+    disableSteppers();
+    delayWithWatchdog(homingFailurePauseMs);
+    watchdogReboot();
+}
+
+bool runSteppersUntilDone(unsigned long timeoutMs) {
+    unsigned long startTime = millis();
+
+    while (stepperLeft.distanceToGo() != 0 || stepperRight.distanceToGo() != 0) {
+        stepperLeft.run();
+        stepperRight.run();
+        wdt_reset();
+
+        if (millis() - startTime > timeoutMs) {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 
@@ -153,6 +195,7 @@ void moveToPositionSynced(float x, float y) {
     float maxDistance = max(leftDistance, rightDistance);
     if (maxDistance <= 0.0) {
         calculateLengths(x, y, currentLeftLength, currentRightLength);
+        hasKnownPosition = true;
         return;
     }
     stepperLeft.setMaxSpeed(maxSpeed * (leftDistance / maxDistance));
@@ -186,6 +229,7 @@ void moveToPositionSynced(float x, float y) {
 
     // 更新当前长度
     calculateLengths(x, y, currentLeftLength, currentRightLength);
+    hasKnownPosition = true;
 }
 
 void setSyncedSpeeds(float leftLength, float rightLength) {
@@ -205,6 +249,13 @@ void autoHome() {
     digitalWrite(8, LOW);  // Enable the left motor
     digitalWrite(9, LOW);  // Enable the right motor
 
+    if (hasKnownPosition) {
+        Serial.println("Moving to HomePoint before autoHome");
+        moveToPositionSynced(HomePointX, HomePointY);
+    } else {
+        Serial.println("Skipping HomePoint pre-move before first autoHome");
+    }
+
     // 提高电机复位速度
     stepperLeft.setMaxSpeed(1000);  // 提高电机的最大速度
     stepperRight.setMaxSpeed(1000); // 可以根据实际情况进一步调整
@@ -216,25 +267,33 @@ void autoHome() {
     Serial.println("autohome Left stepper safty reversed done");
     stepperRight.move(-3000); // 反转右电机一定步数
     Serial.println("autohome Right stepper safty reversed done");
-    while (stepperLeft.distanceToGo() != 0 || stepperRight.distanceToGo() != 0) {
-        stepperLeft.run();
-        stepperRight.run();
-        wdt_reset();
+    if (!runSteppersUntilDone(homingSafetyMoveTimeoutMs)) {
+        handleAutoHomeTimeout("safety reverse");
     }
 
     // 复位左电机
+    unsigned long leftHomeStartTime = millis();
     while (digitalRead(hallPinLeft) == LOW) {  // 当霍尔传感器检测到磁场时停止
         stepperLeft.moveTo(stepperLeft.currentPosition() - 5);  // 每次移动更多步数
         stepperLeft.run();
         wdt_reset();
+
+        if (millis() - leftHomeStartTime > homingSeekTimeoutMs) {
+            handleAutoHomeTimeout("left Hall seek");
+        }
     }
 
     Serial.println("Left homed");
     // 复位右电机
+    unsigned long rightHomeStartTime = millis();
     while (digitalRead(hallPinRight) == LOW) { // 同上
         stepperRight.moveTo(stepperRight.currentPosition() + 5); // 每次移动更多步数
         stepperRight.run();
         wdt_reset();
+
+        if (millis() - rightHomeStartTime > homingSeekTimeoutMs) {
+            handleAutoHomeTimeout("right Hall seek");
+        }
     }
     Serial.println("Right homed");
 
@@ -273,6 +332,7 @@ void autoHome() {
 //    Serial.println(currentRightLength);
 
     Serial.println("Homed to HomePoint");
+    hasKnownPosition = true;
 
 }
 

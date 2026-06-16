@@ -28,6 +28,7 @@ const unsigned long holdTimeMs = 180000UL;
 const unsigned long resetIdleDelayMs = 300000UL;
 const unsigned long resetPulseMs = 2000UL;
 const unsigned long resetBetweenDevicesMs = 600000UL;
+// Row A: 0UL. Row B: 300000UL to start reset 5 minutes later than Row A.
 const unsigned long resetStartOffsetMs = 0UL;
 const unsigned long loopDelayMs = 20UL;
 

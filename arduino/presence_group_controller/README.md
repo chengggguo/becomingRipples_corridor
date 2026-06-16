@@ -82,6 +82,20 @@ Relay CH6 COM -> Device 3 Arduino GND
 - `resetBetweenDevicesMs`：同一排两台装置 reset 请求之间的间隔，默认 10 分钟。
 - `resetStartOffsetMs`：给某一排增加额外 reset 起始延迟，用来错开两排的 reset 时间。
 
+### A/B 两排 Offset 配置
+
+如果两排上传同一份代码，并且 `resetStartOffsetMs` 都是 `0UL`，两排会在同一时间各自 reset 一台装置。为了错峰，建议上传前这样配置：
+
+```cpp
+// Row A controller
+const unsigned long resetStartOffsetMs = 0UL;
+
+// Row B controller
+const unsigned long resetStartOffsetMs = 300000UL;
+```
+
+这样 Row A 会在房间进入 IDLE 后 5 分钟开始 reset 第一台；Row B 会在房间进入 IDLE 后 10 分钟开始 reset 第一台。之后两排都继续按 10 分钟间隔处理下一台。
+
 ### Bus 语义
 
 `D3 = LOW` 表示某一块控制器正处于自己的本地 3 分钟保持期内。
@@ -175,6 +189,20 @@ Relay CH6 COM -> Device 3 Arduino GND
 - `resetPulseMs`: how long each reset request relay stays active. The default is 2 seconds.
 - `resetBetweenDevicesMs`: the gap between reset requests for devices in the same row. The default is 10 minutes.
 - `resetStartOffsetMs`: an extra reset start delay for one row, useful for staggering reset timing between the two rows.
+
+### A/B Row Offset Setup
+
+If both rows are uploaded with the same code and both use `resetStartOffsetMs = 0UL`, the two rows will each reset one device at the same time. To stagger the rows, configure this before uploading:
+
+```cpp
+// Row A controller
+const unsigned long resetStartOffsetMs = 0UL;
+
+// Row B controller
+const unsigned long resetStartOffsetMs = 300000UL;
+```
+
+With this setup, Row A starts resetting its first device 5 minutes after the room enters IDLE. Row B starts resetting its first device 10 minutes after the room enters IDLE. Both rows then continue with the same 10-minute gap before the next local device.
 
 ### Bus Semantics
 

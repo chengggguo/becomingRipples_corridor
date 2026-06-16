@@ -43,7 +43,7 @@ RESET relay COM -> Device Arduino GND
 
 1. 配置步进电机、舵机、Hall 传感器、`D2` 和 `D3`。
 2. 舵机回到休息角度。
-3. 执行 `autoHome()`。
+3. 执行第一次 `autoHome()`。因为第一次开机时坐标未知，所以跳过 HomePoint 预移动，直接执行安全反向和 Hall 寻零。
 4. 初始化随机种子。
 5. 启用 8 秒 watchdog。
 6. 移动到一个随机待机点。
@@ -97,7 +97,10 @@ IDLE
 但是实际 `autoHome()` 只在 IDLE 中执行。进入 IDLE 后，如果存在 pending reset 或当前 `D3 = LOW`，装置会执行：
 
 ```text
-autoHome()
+如果坐标已知，先移动到 HomePointX/HomePointY
+-> 左右电机按原安全方向各自移动约 3000 steps
+-> 左右电机分别寻找 Hall 触发点
+-> 重新校准当前位置为 HomePoint
 -> 移动到随机待机点
 -> 舵机回到休息角度
 -> 清除 pendingReset
@@ -115,7 +118,15 @@ wdt_enable(WDTO_8S);
 
 随机等待最长为 10 秒，超过 watchdog 的 8 秒窗口，所以代码使用 `delayWithWatchdog()` 把长延迟拆成约 50ms 的短段，并在每段中刷新 watchdog、采样 `D3`。
 
-`autoHome()` 和 `moveToPositionSynced()` 的长循环中也会刷新 watchdog。`moveToPositionSynced()` 保留 30 秒运动超时保护；如果超时，会调用 `softwareReboot()` 作为异常恢复。
+`autoHome()` 和 `moveToPositionSynced()` 的长循环中也会刷新 watchdog。`moveToPositionSynced()` 保留 30 秒运动超时保护；如果超时，会调用 `softwareReboot()` 作为异常恢复。当前 `softwareReboot()` 会通过 watchdog 触发重启。
+
+`autoHome()` 现在也有自己的超时保护：
+
+- 安全反向移动默认 15 秒超时。
+- 左侧 Hall 寻零默认 20 秒超时。
+- 右侧 Hall 寻零默认 20 秒超时。
+
+如果 `autoHome()` 超时，代码会关闭步进电机使能，等待 10 秒，然后用 watchdog 触发重启。这样无人运行时会自动重新尝试开机归零。这个策略适合“尽量自恢复”的现场运行，但如果 Hall 传感器或机械结构持续故障，装置会周期性重启并再次尝试归零，因此现场测试时需要确认超时时间不会让机构长时间顶住硬限位。
 
 ### 已移除的旧逻辑
 
@@ -176,7 +187,7 @@ After power-on, the device runs this sequence:
 
 1. Configure steppers, servo, Hall sensors, `D2`, and `D3`.
 2. Move the servo to its rest angle.
-3. Run `autoHome()`.
+3. Run the first `autoHome()`. Because the coordinate position is unknown on first boot, the HomePoint pre-move is skipped and the firmware directly performs the safety reverse and Hall seeking steps.
 4. Initialize the random seed.
 5. Enable the 8-second watchdog.
 6. Move to a random standby point.
@@ -230,7 +241,10 @@ If `D2` returns to `HIGH`, the device does not emergency-stop the current action
 However, the actual `autoHome()` only runs in IDLE. When the device reaches IDLE and either has a pending reset or currently reads `D3 = LOW`, it runs:
 
 ```text
-autoHome()
+if the coordinate is known, move to HomePointX/HomePointY first
+-> move the left and right motors about 3000 steps in their existing safety-reverse directions
+-> seek the left and right Hall trigger points
+-> recalibrate the current position as HomePoint
 -> move to random standby point
 -> return servo to rest angle
 -> clear pendingReset
@@ -248,7 +262,15 @@ wdt_enable(WDTO_8S);
 
 The random wait can be as long as 10 seconds, longer than the 8-second watchdog window. Therefore the code uses `delayWithWatchdog()` to split long waits into roughly 50ms chunks, refreshing the watchdog and sampling `D3` in each chunk.
 
-The long loops in `autoHome()` and `moveToPositionSynced()` also refresh the watchdog. `moveToPositionSynced()` keeps its 30-second movement timeout; on timeout, it calls `softwareReboot()` as abnormal recovery.
+The long loops in `autoHome()` and `moveToPositionSynced()` also refresh the watchdog. `moveToPositionSynced()` keeps its 30-second movement timeout; on timeout, it calls `softwareReboot()` as abnormal recovery. The current `softwareReboot()` triggers reboot through the watchdog.
+
+`autoHome()` now has its own timeout protection:
+
+- The safety reverse move defaults to a 15-second timeout.
+- The left Hall seek defaults to a 20-second timeout.
+- The right Hall seek defaults to a 20-second timeout.
+
+If `autoHome()` times out, the firmware disables the stepper enables, waits 10 seconds, and then uses the watchdog to reboot. This lets the device automatically retry startup homing during unattended operation. This is useful for self-recovery, but if a Hall sensor or mechanical part remains faulty, the device will periodically reboot and try homing again, so on-site testing should confirm that the timeout is short enough to avoid pushing against a hard mechanical limit for too long.
 
 ### Removed Old Logic
 
