@@ -19,6 +19,7 @@
 - 将同排两台装置 reset 请求之间的默认间隔从 1 分钟改为 10 分钟。
 - 新增 `docs/wiring_guide.md`，作为现场接线指南。
 - 将所有 Markdown 文档重排为“完整中文在前，完整英文在后”的结构。
+- 为 presence group controller 增加 500ms 本地传感器 active debounce，减少瞬时误触发。
 
 ## English
 
@@ -39,3 +40,4 @@ This file records intentional changes to the toolbox and Arduino sketches.
 - Changed the default gap between reset requests for devices in the same row from 1 minute to 10 minutes.
 - Added `docs/wiring_guide.md` as an on-site wiring guide.
 - Reorganized all Markdown documents so the full Chinese version appears first and the full English version appears after it.
+- Added a 500ms local sensor active debounce to the presence group controller to reduce momentary false triggers.

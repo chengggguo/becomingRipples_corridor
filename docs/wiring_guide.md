@@ -39,6 +39,8 @@ LD2410C OUT -> Nano D2
 
 当前代码默认 `SENSOR_ACTIVE_HIGH = true`。如果实测发现 OUT 极性相反，需要在代码里改成 `false`。
 
+当前代码还要求 OUT 连续 active 满 500ms 才确认 presence，用来过滤瞬时误触发。
+
 ### 两块控制器之间的 Bus
 
 ```text
@@ -185,6 +187,8 @@ LD2410C OUT -> Nano D2
 ```
 
 The current code assumes `SENSOR_ACTIVE_HIGH = true`. If testing shows the OUT polarity is opposite, change it to `false` in the code.
+
+The current code also requires OUT to stay active continuously for 500ms before confirming presence, which helps filter momentary false triggers.
 
 ### Bus Between Two Controllers
 

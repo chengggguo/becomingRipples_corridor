@@ -12,6 +12,8 @@
 
 当房间无人并且保持期结束后，每块控制器会等待一段空闲时间，然后一次只向本排一台装置发送 reset 请求，避免三台同时归零。继电器触点侧只像“外部按钮”一样短接每台装置自己的输入脚和 `GND`，因此装置之间不需要共地。
 
+为减少瞬时误触发，传感器 OUT 必须连续保持 active 满 500ms，控制器才会刷新本地 3 分钟 `RUN` 保持期。
+
 ### 当前 Sketch
 
 - `presence_group_controller.ino`
@@ -25,6 +27,7 @@
 - 支持低电平触发或高电平触发继电器模块。
 - 通过继电器干接点向三台装置 Arduino 发送 `RUN/IDLE`。
 - 通过 `D3` 上的 active-low Bus 与另一排控制器共享本地 3 分钟 `RUN` 请求。
+- 传感器必须连续 active 满 500ms，才会被认为是真的 presence。
 
 ### 默认接线
 
@@ -72,6 +75,7 @@ Relay CH6 COM -> Device 3 Arduino GND
 
 - `SENSOR_ACTIVE_HIGH`：如果传感器 OUT 极性相反，修改这个常量。
 - `RELAY_ACTIVE_LOW`：如果继电器模块是高电平触发，修改这个常量。
+- `presenceDebounceMs`：传感器必须连续 active 的时间，默认 500ms。
 - `holdTimeMs`：默认是 `180000UL`，也就是 3 分钟。
 - `resetIdleDelayMs`：房间进入 IDLE 后，等待多久才开始逐台发送 reset 请求，默认 5 分钟。
 - `resetPulseMs`：每个 reset 请求继电器保持吸合的时间，默认 2 秒。
@@ -102,6 +106,8 @@ Each controller reads the LD2410C presence sensor on its side and drives six rel
 
 After the room becomes empty and the hold window has ended, each controller waits for an idle delay and then sends reset requests to its local devices one by one, avoiding three devices homing at the same time. On the relay contact side, each relay behaves like an isolated external button that shorts one device's own input pin to its own `GND`, so the device Arduinos do not need to share ground with each other.
 
+To reduce momentary false triggers, the sensor OUT signal must stay active continuously for 500ms before the controller refreshes the local 3-minute `RUN` hold window.
+
 ### Current Sketch
 
 - `presence_group_controller.ino`
@@ -115,6 +121,7 @@ After the room becomes empty and the hold window has ended, each controller wait
 - Support active-low or active-high relay modules.
 - Send `RUN/IDLE` to three device Arduinos through relay dry contacts.
 - Share the local 3-minute `RUN` request with the other row controller through an active-low bus on D3.
+- Require the sensor to stay active continuously for 500ms before accepting it as real presence.
 
 ### Default Wiring
 
@@ -162,6 +169,7 @@ Relay CH6 COM -> Device 3 Arduino GND
 
 - `SENSOR_ACTIVE_HIGH`: change if the sensor OUT polarity is opposite.
 - `RELAY_ACTIVE_LOW`: change if the relay module is active-high.
+- `presenceDebounceMs`: how long the sensor must stay continuously active. The default is 500ms.
 - `holdTimeMs`: default is `180000UL`, equal to 3 minutes.
 - `resetIdleDelayMs`: how long to wait after the room enters IDLE before one-at-a-time reset requests begin. The default is 5 minutes.
 - `resetPulseMs`: how long each reset request relay stays active. The default is 2 seconds.

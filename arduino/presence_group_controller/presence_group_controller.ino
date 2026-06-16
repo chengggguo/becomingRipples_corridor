@@ -23,6 +23,7 @@ const int statusLedPin = 13;
 const bool SENSOR_ACTIVE_HIGH = true;
 const bool RELAY_ACTIVE_LOW = true;
 
+const unsigned long presenceDebounceMs = 500UL;
 const unsigned long holdTimeMs = 180000UL;
 const unsigned long resetIdleDelayMs = 300000UL;
 const unsigned long resetPulseMs = 2000UL;
@@ -31,8 +32,10 @@ const unsigned long resetStartOffsetMs = 0UL;
 const unsigned long loopDelayMs = 20UL;
 
 unsigned long lastLocalPresenceTime = 0;
+unsigned long localPresenceStartedTime = 0;
 bool roomRunActive = false;
 bool hasSeenLocalPresence = false;
+bool rawLocalPresenceWasActive = false;
 
 bool idleResetTimerStarted = false;
 bool resetSweepComplete = false;
@@ -45,6 +48,22 @@ int resetPulsesThisIdle = 0;
 bool readLocalPresence() {
   int sensorValue = digitalRead(sensorPin);
   return SENSOR_ACTIVE_HIGH ? sensorValue == HIGH : sensorValue == LOW;
+}
+
+bool readDebouncedLocalPresence(unsigned long now) {
+  bool rawLocalPresence = readLocalPresence();
+
+  if (!rawLocalPresence) {
+    rawLocalPresenceWasActive = false;
+    return false;
+  }
+
+  if (!rawLocalPresenceWasActive) {
+    rawLocalPresenceWasActive = true;
+    localPresenceStartedTime = now;
+  }
+
+  return now - localPresenceStartedTime >= presenceDebounceMs;
 }
 
 void releasePresenceBus() {
@@ -157,7 +176,7 @@ void setup() {
 
 void loop() {
   unsigned long now = millis();
-  bool localPresence = readLocalPresence();
+  bool localPresence = readDebouncedLocalPresence(now);
 
   if (localPresence) {
     hasSeenLocalPresence = true;

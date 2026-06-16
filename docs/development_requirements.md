@@ -34,6 +34,7 @@
 每个 group controller 应该完成以下工作：
 
 - 通过数字 OUT 引脚读取本地 presence 传感器。
+- 传感器 OUT 必须连续 active 满 500ms，才认为本地 presence 成立。
 - 通过两个控制器之间的 Bus 共享本地 presence 状态。
 - 将房间 presence 判断为 `local presence OR remote presence`。
 - 在最后一次房间级 presence 之后，让本排三台装置继续 `RUN` 3 分钟。
@@ -84,6 +85,7 @@ Each row has one group controller Arduino. There are two group controllers total
 Each group controller should:
 
 - Read its local presence sensor using a digital OUT pin.
+- Require the sensor OUT signal to stay active continuously for 500ms before accepting local presence.
 - Share its local presence state with the other group controller through a cross-controller bus.
 - Treat room presence as `local presence OR remote presence`.
 - Keep its three downstream devices in `RUN` for 3 minutes after the last room-level presence.
