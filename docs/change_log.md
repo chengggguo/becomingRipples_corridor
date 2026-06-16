@@ -27,3 +27,5 @@ This file records intentional changes to the toolbox and Arduino sketches.
   Added a concrete device-side `RUN/IDLE` and `AUTOHOME/RESET` modification plan document.
 - 将同排两台装置 reset 请求之间的默认间隔从 1 分钟改为 10 分钟。
   Changed the default gap between reset requests for devices in the same row from 1 minute to 10 minutes.
+- 新增 `docs/wiring_guide.md`，作为现场接线指南。
+  Added `docs/wiring_guide.md` as an on-site wiring guide.

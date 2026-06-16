@@ -22,6 +22,10 @@
   装置端 `RUN/IDLE` 与 `AUTOHOME/RESET` 修改方案。
   Device-side `RUN/IDLE` and `AUTOHOME/RESET` modification plan.
 
+- `docs/wiring_guide.md`
+  现场接线指南。
+  On-site wiring guide.
+
 - `docs/change_log.md`
   项目变更记录。
   Project change log.

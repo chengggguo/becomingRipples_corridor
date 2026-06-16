@@ -32,6 +32,10 @@ This sketch runs on one Arduino Nano R3 per row. Its job is to convert room-leve
 
 ## Default Wiring / 默认接线
 
+更完整的现场接线说明见 `docs/wiring_guide.md`。
+
+For a fuller on-site wiring guide, see `docs/wiring_guide.md`.
+
 ```text
 LD2410C OUT -> Nano D2
 
