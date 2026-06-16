@@ -1,0 +1,30 @@
+# OS/editor noise
+.DS_Store
+Thumbs.db
+Desktop.ini
+.vscode/
+.idea/
+
+# Arduino/editor generated files
+*.hex
+*.elf
+*.bin
+*.map
+*.eep
+*.lst
+*.sym
+*.tmp
+*.bak
+
+# Build/cache folders
+build/
+dist/
+out/
+.cache/
+tmp/
+temp/
+
+# Local secrets or machine-specific notes
+.env
+*.local
+
