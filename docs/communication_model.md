@@ -63,7 +63,7 @@ The two group controller Arduinos must communicate room-level presence.
 
 If either controller sees presence, it tells the other controller through the bus. Both controllers then keep their own three relays active, so all six devices run.
 
-The exact bus hardware should be selected before final code is written. See `docs/bus_options.md`.
+The current controller sketch uses the simple active-low digital bus on D3. See `docs/bus_options.md`.
 
 ## Device Communication Boundary
 

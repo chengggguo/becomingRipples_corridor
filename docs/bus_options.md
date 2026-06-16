@@ -63,9 +63,25 @@ Cons:
 - Uses more pins and more code.
 - Needs a small message protocol.
 
-## Current Recommendation
+## Selected V1 Implementation
+
+The current `presence_group_controller.ino` sketch uses Option A:
+
+```text
+Controller A D3 -> Controller B D3
+Controller A GND -> Controller B GND
+```
+
+The code uses open-drain style behavior:
+
+- local presence: D3 becomes `OUTPUT LOW`;
+- no local presence: D3 becomes `INPUT_PULLUP`;
+- remote presence is detected when D3 reads `LOW`.
+
+For longer cables, adding an external pull-up resistor such as 4.7kΩ to 5V on the bus line can improve stability.
+
+## Recommendation
 
 Use Option A for the fastest prototype if the two group controller Arduinos are physically close and can share GND.
 
 Use Option B if the installation wiring between the two rows is long, routed near motors/power, or needs stronger noise tolerance.
-
