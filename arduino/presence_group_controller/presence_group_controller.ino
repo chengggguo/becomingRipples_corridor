@@ -3,13 +3,13 @@
   Board: Arduino Nano R3 / Uno compatible
 
   One controller is used for each row of three 190cmBar devices.
-  Each controller reads one LD2410C digital OUT pin, shares local presence
-  with the other controller through a simple active-low bus, and drives
+  Each controller reads one LD2410C digital OUT pin, shares its local
+  3-minute run request through a simple active-low bus, and drives
   three relay channels for its local devices.
 
   Bus behavior:
-  - LOW means at least one controller currently detects local presence.
-  - HIGH means no controller is currently reporting local presence.
+  - LOW means at least one controller is in its local 3-minute hold window.
+  - HIGH means no controller is reporting a local run request.
   - The bus pin is never driven HIGH. It is either INPUT_PULLUP or OUTPUT LOW.
 */
 
@@ -24,9 +24,9 @@ const bool RELAY_ACTIVE_LOW = true;
 const unsigned long holdTimeMs = 180000UL;
 const unsigned long loopDelayMs = 20UL;
 
-unsigned long lastRoomPresenceTime = 0;
+unsigned long lastLocalPresenceTime = 0;
 bool roomRunActive = false;
-bool hasSeenRoomPresence = false;
+bool hasSeenLocalPresence = false;
 
 bool readLocalPresence() {
   int sensorValue = digitalRead(sensorPin);
@@ -77,21 +77,22 @@ void setup() {
 
 void loop() {
   bool localPresence = readLocalPresence();
-  bool remotePresence = false;
-  
+
   if (localPresence) {
+    hasSeenLocalPresence = true;
+    lastLocalPresenceTime = millis();
+  }
+
+  bool localRunRequest = hasSeenLocalPresence && millis() - lastLocalPresenceTime < holdTimeMs;
+  bool remoteRunRequest = false;
+
+  if (localRunRequest) {
     assertPresenceBus();
   } else {
-    remotePresence = readRemotePresence();
+    remoteRunRequest = readRemotePresence();
   }
 
-  bool roomPresence = localPresence || remotePresence;
-  if (roomPresence) {
-    hasSeenRoomPresence = true;
-    lastRoomPresenceTime = millis();
-  }
-
-  roomRunActive = hasSeenRoomPresence && millis() - lastRoomPresenceTime < holdTimeMs;
+  roomRunActive = localRunRequest || remoteRunRequest;
 
   setAllRelays(roomRunActive);
   digitalWrite(statusLedPin, roomRunActive ? HIGH : LOW);

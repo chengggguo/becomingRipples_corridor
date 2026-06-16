@@ -19,3 +19,5 @@ This file records intentional changes to the toolbox and Arduino sketches.
   Added the first Arduino Nano R3 presence group controller sketch with LD2410C input, three relay outputs, and active-low cross-controller bus.
 - 将项目说明文档改为中英双语。
   Rewrote project documentation as bilingual Chinese/English docs.
+- 将 presence group controller 的 Bus 语义从瞬时 `localPresence` 改为本地 3 分钟 `localRunRequest`。
+  Changed the presence group controller bus semantics from instant `localPresence` to local 3-minute `localRunRequest`.

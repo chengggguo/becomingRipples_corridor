@@ -19,8 +19,8 @@ This folder is for the new row-level Arduino sketch.
   Support active-low or active-high relay modules.
 - 通过继电器干接点向三台装置 Arduino 发送 `RUN/IDLE`。
   Send `RUN/IDLE` to three device Arduinos through relay dry contacts.
-- 通过 `D3` 上的 active-low Bus 与另一排控制器共享本地 presence。
-  Share local presence with the other row controller through an active-low bus on D3.
+- 通过 `D3` 上的 active-low Bus 与另一排控制器共享本地 3 分钟 `RUN` 请求。
+  Share the local 3-minute `RUN` request with the other row controller through an active-low bus on D3.
 
 ## Default Wiring / 默认接线
 
@@ -59,3 +59,13 @@ Relay CH3 COM -> Device 3 Arduino GND
   `RELAY_ACTIVE_LOW`: change if the relay module is active-high.
 - `holdTimeMs`：默认是 `180000UL`，也就是 3 分钟。
   `holdTimeMs`: default is `180000UL`, equal to 3 minutes.
+
+## Bus Semantics / Bus 语义
+
+`D3 = LOW` 表示某一块控制器正处于自己的本地 3 分钟保持期内。
+
+`D3 = LOW` means one controller is currently inside its own local 3-minute hold window.
+
+每块控制器只把自己的本地保持状态发送到 Bus，不会把 remote Bus 状态再次发送回去，这样可以避免两个控制器互相续命导致永远不停止。
+
+Each controller only publishes its own local hold state to the bus. It does not re-publish the remote bus state, which avoids an infinite mutual hold between the two controllers.

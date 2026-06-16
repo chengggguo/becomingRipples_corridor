@@ -103,12 +103,16 @@ Controller A GND -> Controller B GND
 代码使用 open-drain 风格。
 The code uses open-drain style behavior:
 
-- 本地检测到 presence：`D3` 变为 `OUTPUT LOW`。
-  Local presence: D3 becomes `OUTPUT LOW`.
-- 本地未检测到 presence：`D3` 变为 `INPUT_PULLUP`。
-  No local presence: D3 becomes `INPUT_PULLUP`.
-- 当 `D3` 读到 `LOW` 时，认为检测到 remote presence。
-  Remote presence is detected when D3 reads `LOW`.
+- 本地 3 分钟保持期内：`D3` 变为 `OUTPUT LOW`。
+  Local 3-minute hold active: D3 becomes `OUTPUT LOW`.
+- 本地 3 分钟保持结束：`D3` 变为 `INPUT_PULLUP`。
+  Local 3-minute hold ended: D3 becomes `INPUT_PULLUP`.
+- 当 `D3` 读到 `LOW` 时，认为对方正在请求 `RUN`。
+  Remote `RUN` request is detected when D3 reads `LOW`.
+
+注意：Bus 只传播本地 hold 状态，不会把 remote request 再次发布回 Bus。这样可以让任意一侧触发六台运行，同时避免两个控制器互相保持导致永远不停止。
+
+Note: the bus only publishes the local hold state. It does not re-publish a remote request back onto the bus. This lets either side trigger all six devices while avoiding an infinite mutual hold.
 
 如果线缆较长，可以在 Bus 线上加一个外部上拉电阻，例如 4.7kΩ 到 5V，以提高稳定性。
 For longer cables, adding an external pull-up resistor such as 4.7kΩ to 5V on the bus line can improve stability.

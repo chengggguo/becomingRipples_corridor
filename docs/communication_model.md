@@ -73,11 +73,11 @@ When the relay closes, D2 is pulled to the device's own GND, so the device reads
 两块 group controller Arduino 必须共享房间级 presence 状态。
 The two group controller Arduinos must communicate room-level presence.
 
-如果任意一块控制器检测到 presence，它会通过 Bus 告诉另一块控制器。两块控制器都会打开各自的三路继电器，所以六台装置都会运行。
-If either controller sees presence, it tells the other controller through the bus. Both controllers then keep their own three relays active, so all six devices run.
+如果任意一块控制器检测到 presence，它会进入本地 3 分钟保持期，并在保持期内通过 Bus 告诉另一块控制器继续 `RUN`。两块控制器都会打开各自的三路继电器，所以六台装置都会运行。
+If either controller sees presence, it enters its local 3-minute hold window and tells the other controller to keep `RUN` active through the bus. Both controllers then keep their own three relays active, so all six devices run.
 
-当前 controller 程序使用 `D3` 上的简单 active-low digital bus。更多细节见 `docs/bus_options.md`。
-The current controller sketch uses the simple active-low digital bus on D3. See `docs/bus_options.md`.
+当前 controller 程序使用 `D3` 上的简单 active-low digital bus。`D3 = LOW` 表示本地 3 分钟保持期仍有效。更多细节见 `docs/bus_options.md`。
+The current controller sketch uses the simple active-low digital bus on D3. `D3 = LOW` means the local 3-minute hold window is still active. See `docs/bus_options.md`.
 
 ## Device Communication Boundary / 装置通信边界
 
