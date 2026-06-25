@@ -15,6 +15,10 @@
   Prints the raw LD2410 OUT value read on D2 and mirrors presence on D13.
 - `tests/presence_group_controller_no_hold_test/`
   Presence Group Controller variant without the 3-minute hold, for immediate sensor testing.
+- `tests/presence_group_controller_no_bus_relay_test/`
+  Presence Group Controller variant with D3 bus disabled, useful for checking local sensor and six relay behavior.
+- `tests/presence_group_controller_runtime_reset_test/`
+  No-bus test for reset scheduling based on accumulated RUN time, with per-device reset progress tracking.
 
 ## Libraries And References
 

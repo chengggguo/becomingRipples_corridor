@@ -1,31 +1,40 @@
 /*
-  Becoming Ripples - Presence Group Controller
+  Becoming Ripples - per-device runtime reset scheduler test
   Board: Arduino Nano R3 / Uno compatible
 
-  One controller is used for each row of three 190cmBar devices.
-  Each controller reads one LD2410C digital OUT pin, shares its local
-  3-minute run request through a simple active-low bus, and drives
-  RUN and reset request relay channels for its local devices.
+  Temporary diagnostic sketch.
 
-  Bus behavior:
-  - LOW means at least one controller is in its local 3-minute hold window.
-  - HIGH means no controller is reporting a local run request.
-  - The bus pin is never driven HIGH. It is either INPUT_PULLUP or OUTPUT LOW.
+  Purpose:
+  - D3 bus is disabled.
+  - Relay polarity is set for the on-site relay board:
+    RELAY_ACTIVE_LOW = false, so HIGH turns a relay ON.
+  - Each device tracks its own accumulated RUN time since that device last
+    received a reset pulse.
+  - Reset is triggered per device after its own accumulated RUN time reaches
+    runTimeBeforeResetMs.
+  - If a reset sequence is interrupted by presence, the current 2-second reset
+    pulse finishes first. RUN then resumes. Devices that were already queued
+    for reset are completed first; devices that become due during the
+    interruption are queued for the next pass.
 
-  Reset behavior:
-  - Each local device tracks its own accumulated RUN time since that device
-    last received a reset pulse.
-  - A device is queued for reset only after its own accumulated RUN time
-    reaches runTimeBeforeResetMs.
-  - Reset pulses are sent only while the room is IDLE.
-  - If presence appears during an active reset pulse, the current 2-second
-    reset pulse finishes first. RUN then resumes.
-  - Devices already queued for reset are completed first; devices that become
-    due during an interruption are queued for the next pass.
+  Short test timing:
+  - D2 HIGH for 500ms starts RUN.
+  - Each device becomes reset-due after 12 seconds of accumulated RUN time.
+  - After RUN stops, wait 5 seconds before starting reset.
+  - Pulse one reset relay for 2 seconds.
+  - Wait 8 seconds before the next reset relay.
+
+  Example edge case:
+  1. Devices 1/2/3 run for 12 seconds. All three become due.
+  2. Device 1 resets.
+  3. Presence returns and all devices run for another 12 seconds.
+  4. On the next IDLE window, devices 2 and 3 reset first, because they were
+     already due from the earlier pass.
+  5. Device 1 then resets again, because it accumulated another 12 seconds
+     after its own previous reset.
 */
 
 const int sensorPin = 2;
-const int busPin = 3;
 const int deviceCount = 3;
 const int runRelayPins[deviceCount] = {5, 6, 7};
 const int resetRelayPins[deviceCount] = {8, 9, 10};
@@ -35,13 +44,11 @@ const bool SENSOR_ACTIVE_HIGH = true;
 const bool RELAY_ACTIVE_LOW = false;
 
 const unsigned long presenceDebounceMs = 500UL;
-const unsigned long holdTimeMs = 180000UL;
-const unsigned long runTimeBeforeResetMs = 900000UL;
-const unsigned long resetIdleDelayMs = 300000UL;
+const unsigned long holdTimeMs = 2000UL;
+const unsigned long runTimeBeforeResetMs = 12000UL;
+const unsigned long resetIdleDelayMs = 5000UL;
 const unsigned long resetPulseMs = 2000UL;
-const unsigned long resetBetweenDevicesMs = 600000UL;
-// Row A: 0UL. Row B: 300000UL to start reset 5 minutes later than Row A.
-const unsigned long resetStartOffsetMs = 0UL;
+const unsigned long resetBetweenDevicesMs = 8000UL;
 const unsigned long loopDelayMs = 20UL;
 
 unsigned long lastLocalPresenceTime = 0;
@@ -81,21 +88,6 @@ bool readDebouncedLocalPresence(unsigned long now) {
   }
 
   return now - localPresenceStartedTime >= presenceDebounceMs;
-}
-
-void releasePresenceBus() {
-  pinMode(busPin, INPUT_PULLUP);
-}
-
-void assertPresenceBus() {
-  digitalWrite(busPin, LOW);
-  pinMode(busPin, OUTPUT);
-}
-
-bool readRemotePresence() {
-  releasePresenceBus();
-  delayMicroseconds(50);
-  return digitalRead(busPin) == LOW;
 }
 
 void setRelay(int pin, bool on) {
@@ -249,7 +241,7 @@ void updateResetScheduler(bool runActive, unsigned long now) {
 
   if (!idleResetTimerStarted) {
     idleResetTimerStarted = true;
-    nextResetAllowedTime = now + resetIdleDelayMs + resetStartOffsetMs;
+    nextResetAllowedTime = now + resetIdleDelayMs;
   }
 
   if (timeReached(now, nextResetAllowedTime)) {
@@ -262,7 +254,6 @@ void updateResetScheduler(bool runActive, unsigned long now) {
 
 void setup() {
   pinMode(sensorPin, INPUT);
-  releasePresenceBus();
 
   for (int i = 0; i < deviceCount; i++) {
     pinMode(runRelayPins[i], OUTPUT);
@@ -285,17 +276,8 @@ void loop() {
   }
 
   bool localRunRequest = hasSeenLocalPresence && now - lastLocalPresenceTime < holdTimeMs;
-  bool remoteRunRequest = false;
-
-  if (localRunRequest) {
-    assertPresenceBus();
-  } else {
-    remoteRunRequest = readRemotePresence();
-  }
-
-  bool requestedRunActive = localRunRequest || remoteRunRequest;
   bool finishResetBeforeRun = activeResetDeviceIndex >= 0;
-  roomRunActive = requestedRunActive && !finishResetBeforeRun;
+  roomRunActive = localRunRequest && !finishResetBeforeRun;
 
   accountRunTime(now);
   setRunRelays(roomRunActive);

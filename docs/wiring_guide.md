@@ -66,7 +66,7 @@ Nano D9  -> Relay IN5
 Nano D10 -> Relay IN6
 ```
 
-当前代码默认 `RELAY_ACTIVE_LOW = true`，适用于很多低电平触发继电器模块。若你的继电器模块是高电平触发，需要改成 `false`。
+当前代码默认 `RELAY_ACTIVE_LOW = false`，适用于现场测试过的高电平触发继电器模块。若你的继电器模块是低电平触发，需要改成 `true`。
 
 ### 继电器触点侧到装置
 
@@ -229,7 +229,7 @@ Nano D9  -> Relay IN5
 Nano D10 -> Relay IN6
 ```
 
-The current code assumes `RELAY_ACTIVE_LOW = true`, which matches many active-low relay modules. If your relay module is active-high, change it to `false`.
+The current code assumes `RELAY_ACTIVE_LOW = false`, which matches the on-site active-high relay module test. If your relay module is active-low, change it to `true`.
 
 ### Relay Contact Side to Devices
 

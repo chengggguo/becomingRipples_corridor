@@ -33,6 +33,8 @@
 - 重排 Arduino 代码目录：正式装置固件放入 `arduino/devices/`，正式控制器固件放入 `arduino/controllers/`，临时测试 sketch 放入 `arduino/tests/`。
 - 将 LD2410 串口调参库移入 `arduino/libraries/HLK_LD2410_config/`。
 - 将 No LED 单机分叉移入 `arduino/legacy/`。
+- 将正式 Presence Group Controller 的 reset 调度改为“每台装置累计 RUN 时长达标后再排队 reset”，并保留 D3 Bus 联动。
+- 将正式 Presence Group Controller 的继电器默认极性改为高电平触发，以匹配现场测试的继电器模块。
 
 ## English
 
@@ -67,3 +69,5 @@ This file records intentional changes to the toolbox and Arduino sketches.
 - Reorganized Arduino code folders: production device firmware is under `arduino/devices/`, production controller firmware is under `arduino/controllers/`, and temporary diagnostic sketches are under `arduino/tests/`.
 - Moved the LD2410 UART configuration library into `arduino/libraries/HLK_LD2410_config/`.
 - Moved the standalone no-LED branch into `arduino/legacy/`.
+- Changed the production Presence Group Controller reset scheduler so each device is queued for reset only after its own accumulated RUN time reaches the threshold, while keeping D3 bus linking.
+- Changed the production Presence Group Controller default relay polarity to active-high to match the on-site relay module test.
