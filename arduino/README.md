@@ -19,6 +19,8 @@
   Presence Group Controller variant with D3 bus disabled, useful for checking local sensor and six relay behavior.
 - `tests/presence_group_controller_runtime_reset_test/`
   No-bus test for reset scheduling based on accumulated RUN time, with per-device reset progress tracking.
+- `tests/presence_group_controller_runtime_bus_test/`
+  Short-timing runtime reset test with D3 bus enabled and an A/B row delay setting.
 
 ## Libraries And References
 

@@ -1,28 +1,36 @@
 /*
-  Becoming Ripples - Presence Group Controller
+  Becoming Ripples - runtime reset + D3 bus test
   Board: Arduino Nano R3 / Uno compatible
 
-  One controller is used for each row of three 190cmBar devices.
-  Each controller reads one LD2410C digital OUT pin, shares its local
-  3-minute run request through a simple active-low bus, and drives
-  RUN and reset request relay channels for its local devices.
+  Temporary diagnostic sketch.
+
+  Purpose:
+  - Test the D3 active-low bus between two Presence Group Controllers.
+  - Keep the short per-device runtime reset scheduler from the runtime reset
+    test sketch.
+  - Add a simple A/B row setting at the top so the two rows can use different
+    first-reset delays while sharing the same code.
+
+  Wiring between two controller Arduinos:
+  - Controller A D3  -> Controller B D3
+  - Controller A GND -> Controller B GND
 
   Bus behavior:
-  - LOW means at least one controller is in its local 3-minute hold window.
-  - HIGH means no controller is reporting a local run request.
-  - The bus pin is never driven HIGH. It is either INPUT_PULLUP or OUTPUT LOW.
+  - If this controller has local RUN request, it pulls D3 LOW.
+  - If this controller does not have local RUN request, it releases D3 with
+    INPUT_PULLUP and reads whether the other controller is pulling it LOW.
+  - Remote bus RUN can start RUN relays, just like local presence.
 
-  Reset behavior:
-  - Each local device tracks its own accumulated RUN time since that device
-    last received a reset pulse.
-  - A device is queued for reset only after its own accumulated RUN time
-    reaches runTimeBeforeResetMs.
-  - Reset pulses are sent only while the room is IDLE.
-  - If presence appears during an active reset pulse, the current 2-second
-    reset pulse finishes first. RUN then resumes.
-  - Devices already queued for reset are completed first; devices that become
-    due during an interruption are queued for the next pass.
+  Short test timing:
+  - D2 HIGH for 500ms starts local RUN.
+  - Local or remote bus RUN keeps relays 1/2/3 ON.
+  - Each device becomes reset-due after 12 seconds of accumulated RUN time.
+  - Row A waits 5 seconds in IDLE before the first reset pulse.
+  - Row B waits 8 seconds in IDLE before the first reset pulse.
+  - Later reset pulses are separated by 5 seconds.
 */
+
+const char ROW_ID = 'B'; // Use 'A' for one row, 'B' for the other row.
 
 const int sensorPin = 2;
 const int busPin = 3;
@@ -31,18 +39,16 @@ const int runRelayPins[deviceCount] = {5, 6, 7};
 const int resetRelayPins[deviceCount] = {8, 9, 10};
 const int statusLedPin = 13;
 
-const char ROW_ID = 'A'; // Use 'A' for one row, 'B' for the other row.
-
 const bool SENSOR_ACTIVE_HIGH = true;
 const bool RELAY_ACTIVE_LOW = false;
 
 const unsigned long presenceDebounceMs = 500UL;
-const unsigned long holdTimeMs = 180000UL;
-const unsigned long runTimeBeforeResetMs = 900000UL;
-const unsigned long rowAResetIdleDelayMs = 300000UL;
-const unsigned long rowBResetIdleDelayMs = 600000UL;
+const unsigned long holdTimeMs = 2000UL;
+const unsigned long runTimeBeforeResetMs = 12000UL;
+const unsigned long rowAResetIdleDelayMs = 5000UL;
+const unsigned long rowBResetIdleDelayMs = 8000UL;
 const unsigned long resetPulseMs = 2000UL;
-const unsigned long resetBetweenDevicesMs = 600000UL;
+const unsigned long resetBetweenDevicesMs = 5000UL;
 const unsigned long loopDelayMs = 20UL;
 
 const unsigned long resetIdleDelayMs = ROW_ID == 'B' ? rowBResetIdleDelayMs : rowAResetIdleDelayMs;

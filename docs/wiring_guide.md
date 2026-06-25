@@ -138,16 +138,16 @@ last presence detected
 
 如果中途检测到人，reset 调度会取消，所有 reset 继电器关闭，`RUN` 继电器恢复响应。
 
-如果两排需要错峰 reset，建议 Row A 保持：
+如果两排需要错峰 reset，上传前设置 `ROW_ID`：
 
 ```cpp
-const unsigned long resetStartOffsetMs = 0UL;
+const char ROW_ID = 'A';
 ```
 
 Row B 上传前改成：
 
 ```cpp
-const unsigned long resetStartOffsetMs = 300000UL;
+const char ROW_ID = 'B';
 ```
 
 这样 Row A 在 IDLE 后 5 分钟开始 reset，Row B 在 IDLE 后 10 分钟开始 reset。
@@ -301,16 +301,16 @@ last presence detected
 
 If presence is detected during the reset sequence, reset scheduling is cancelled, all reset relays turn off, and the `RUN` relays resume response.
 
-If the two rows should stagger reset timing, keep Row A as:
+If the two rows should stagger reset timing, set `ROW_ID` before uploading:
 
 ```cpp
-const unsigned long resetStartOffsetMs = 0UL;
+const char ROW_ID = 'A';
 ```
 
 Before uploading Row B, change it to:
 
 ```cpp
-const unsigned long resetStartOffsetMs = 300000UL;
+const char ROW_ID = 'B';
 ```
 
 With this setup, Row A starts resetting 5 minutes after IDLE, and Row B starts resetting 10 minutes after IDLE.
