@@ -21,10 +21,16 @@
 
 ### Arduino 目标代码
 
-- `arduino/190cmBar_device/`
+- `arduino/devices/190cmBar_device/`
   每台原始 190cmBar 装置的修改版固件。
-- `arduino/presence_group_controller/`
+- `arduino/controllers/presence_group_controller/`
   每排 `Presence Group Controller` 的新固件。
+- `arduino/tests/`
+  临时测试 sketch，例如传感器 D2 读数、串口打印和无 hold controller 测试。
+- `arduino/libraries/HLK_LD2410_config/`
+  LD2410 串口读取/调参库参考。
+- `arduino/legacy/`
+  旧分叉版本，目前包括 No LED 单机分叉。
 
 ## English
 
@@ -47,7 +53,13 @@
 
 ### Arduino Targets
 
-- `arduino/190cmBar_device/`
+- `arduino/devices/190cmBar_device/`
   Modified firmware for each original 190cmBar device.
-- `arduino/presence_group_controller/`
+- `arduino/controllers/presence_group_controller/`
   New firmware for each row-level `Presence Group Controller`.
+- `arduino/tests/`
+  Temporary diagnostic sketches, such as sensor D2 readout, serial printing, and no-hold controller testing.
+- `arduino/libraries/HLK_LD2410_config/`
+  Reference LD2410 UART read/configuration library.
+- `arduino/legacy/`
+  Older branches, currently including the standalone no-LED branch.

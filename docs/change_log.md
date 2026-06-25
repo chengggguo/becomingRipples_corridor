@@ -28,6 +28,12 @@
 - 将装置端异常 `softwareReboot()` 改为通过 watchdog 触发重启。
 - 为两排 Presence Group Controller 增加 A/B `resetStartOffsetMs` 错峰配置说明。
 
+### 2026-06-25
+
+- 重排 Arduino 代码目录：正式装置固件放入 `arduino/devices/`，正式控制器固件放入 `arduino/controllers/`，临时测试 sketch 放入 `arduino/tests/`。
+- 将 LD2410 串口调参库移入 `arduino/libraries/HLK_LD2410_config/`。
+- 将 No LED 单机分叉移入 `arduino/legacy/`。
+
 ## English
 
 This file records intentional changes to the toolbox and Arduino sketches.
@@ -55,3 +61,9 @@ This file records intentional changes to the toolbox and Arduino sketches.
 - Updated `autoHome()`: when the coordinate is known, move back to HomePoint before safety reverse and Hall seeking, and add homing timeout recovery through watchdog reboot.
 - Changed device-side abnormal `softwareReboot()` to trigger reboot through the watchdog.
 - Added A/B `resetStartOffsetMs` staggered-reset setup notes for the two Presence Group Controllers.
+
+### 2026-06-25
+
+- Reorganized Arduino code folders: production device firmware is under `arduino/devices/`, production controller firmware is under `arduino/controllers/`, and temporary diagnostic sketches are under `arduino/tests/`.
+- Moved the LD2410 UART configuration library into `arduino/libraries/HLK_LD2410_config/`.
+- Moved the standalone no-LED branch into `arduino/legacy/`.
