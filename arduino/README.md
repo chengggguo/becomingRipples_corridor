@@ -30,4 +30,4 @@
 ## Legacy
 
 - `legacy/190cmBar_device_no_led_only/`
-  Standalone no-LED branch. This is not the current linked six-device firmware.
+  `190cmBar_device_no_led_only.ino` is the standalone device version without external RUN/RESET inputs. It homes on startup, runs the original random-motion cycle continuously, retains the cycle-count reboot logic, and removes the LED control path. This is not the linked Presence Group Controller version.
