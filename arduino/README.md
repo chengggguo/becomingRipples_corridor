@@ -2,10 +2,14 @@
 
 ## Production Sketches
 
+- `devices/190cmBar_device_status_led/`
+  Current linked 190cmBar device version with D13 status feedback: OFF in IDLE, steady ON in RUN, and non-blocking fast blink during AUTOHOME/RESET.
 - `devices/190cmBar_device/`
-  Firmware for each linked 190cmBar device.
+  Retained base firmware for each linked 190cmBar device, without D13 status feedback.
+- `controllers/presence_group_controller_2devices/`
+  Current two-device Presence Group Controller using D5/D6 for Device A and D7/D8 for Device B.
 - `controllers/presence_group_controller/`
-  Firmware for each row-level Presence Group Controller.
+  Retained older three-device Presence Group Controller.
 
 ## Temporary Tests
 
