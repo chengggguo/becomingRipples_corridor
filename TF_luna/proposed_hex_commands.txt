@@ -12,7 +12,7 @@ distance of 410 cm. Measure the real room before applying them.
 
 Provisional behavior / 拟定行为
 -------------------------------
-Mode       = 1      Pin 6 HIGH when closer
+Mode       = 1      FIXED: Pin 6 HIGH when closer; matches Nano SENSOR_ACTIVE_HIGH=true
 Dist       = 370 cm (410 cm minimum empty distance - 40 cm margin)
 Zone       = 20 cm  release threshold = 390 cm
 Delay1     = 0 ms   Nano performs the 100 ms rising-edge qualification

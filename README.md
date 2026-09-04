@@ -1,55 +1,87 @@
-﻿# Becoming Ripples Corridor Toolbox
+# Becoming Ripples Corridor
 
-## 当前文件与作用
+本仓库保存走廊人体传感器、双装置联动、190cmBar 装置本体以及 TF-Luna 配置工具。本文只说明各文件负责什么；接线和运行细节见对应目录内的 README。
 
-1. `arduino/controllers/presence_group_controller_2devices_sr602/presence_group_controller_2devices_sr602.ino`：SR602 两装置控制器；SR602 OUT 接控制器 D2。
-2. `arduino/controllers/presence_group_controller_2devices_tfluna/presence_group_controller_2devices_tfluna.ino`：TF-Luna Digital OUT 两装置控制器；TF-Luna 预配置后以 5V、GND、Digital OUT 三线运行，OUT 接控制器 D2。
-3. `arduino/controllers/presence_group_controller/presence_group_controller.ino`：保留的旧三装置控制器版本，没有被两装置版覆盖。
-4. `arduino/devices/190cmBar_device_status_led/190cmBar_device_status_led.ino`：新增的 D13 状态灯装置端版本；IDLE 熄灭、RUN 常亮、AUTOHOME/RESET 非阻塞快闪；同目录 `README.md` 包含无装置硬件时的四按钮临时接线与操作方法。
-5. `arduino/devices/190cmBar_device/190cmBar_device.ino`：保留不变的基础装置端固件，接收 D2 RUN/IDLE 和 D3 AUTOHOME/RESET 信号。
-6. `arduino/legacy/190cmBar_device_no_led_only/190cmBar_device_no_led_only.ino`：无外部 RUN/RESET 的自主运行装置版；保留原始随机运动和按轮数自动重启逻辑，只移除了 LED 控制路径。
-7. `arduino/tests/`：现场排查和短时间验证用的临时测试程序，不是当前正式上传文件。
+## 当前正式代码
 
-## 中文
+### 传感器控制器：二选一
 
-这个文件夹是 Becoming Ripples 六台装置联动控制更新的工作工具箱。
+- `arduino/controllers/presence_group_controller_2devices_tfluna/presence_group_controller_2devices_tfluna.ino`
+  - Arduino Nano 双装置控制器，读取 TF-Luna Pin 6 Digital OUT。
+  - Nano D5/D6 控制装置 A 的 RUN/RESET，D7/D8 控制装置 B 的 RUN/RESET。
 
-当前内容：
+- `arduino/controllers/presence_group_controller_2devices_sr602/presence_group_controller_2devices_sr602.ino`
+  - Arduino Nano 双装置控制器，读取 SR602 数字输出。
+  - 继电器输出和双装置调度与 TF-Luna 版本对应，传感器确认时间不同。
 
-1. `arduino/devices/190cmBar_device_status_led/190cmBar_device_status_led.ino`：带 D13 状态反馈的 190cmBar 装置端联动版固件。
-2. `arduino/devices/190cmBar_device/190cmBar_device.ino`：保留的无状态灯基础装置端联动固件。
-3. `arduino/controllers/presence_group_controller_2devices_sr602/presence_group_controller_2devices_sr602.ino`：SR602 两装置控制器。
-4. `arduino/controllers/presence_group_controller_2devices_tfluna/presence_group_controller_2devices_tfluna.ino`：TF-Luna 三线 Digital OUT 两装置控制器。
-5. `arduino/controllers/presence_group_controller/presence_group_controller.ino`：保留的旧三装置控制器程序。
-6. `arduino/tests/`：现场排查用的临时测试 sketch。
-7. `arduino/libraries/HLK_LD2410_config/`：LD2410 串口调参库参考。
-8. `arduino/legacy/190cmBar_device_no_led_only/190cmBar_device_no_led_only.ino`：不包含外部 RUN/RESET 的自主随机运行、无 LED 版本。
+实际安装根据传感器选择其中一个，不要同时上传。
 
-建议从这些文档开始：
+### 装置控制器
 
-- `index.md`
-- `docs/development_requirements.md`
-- `docs/communication_model.md`
-- `docs/wiring_guide.md`
+- `arduino/devices/190cmBar_device_status_led/190cmBar_device_status_led.ino`
+  - 当前正式的 Arduino Uno 装置固件。
+  - A1 是低电平有效的 RUN 输入，A2 是低电平有效的 RESET/AUTOHOME 输入。
+  - D13 显示 IDLE、RUN 和 AUTOHOME 状态。
+  - 控制步进电机、舵机和 D11/D12 Hall 传感器。
 
-## English
+## TF-Luna 测距和配置工具
 
-This folder is the working toolbox for the six-device Becoming Ripples control update.
+- `TF_luna/Start_TF_Luna_Wizard_Windows.bat`
+  - Windows 双击启动入口，检查 Python 后打开 TF-Luna 向导。
 
-Current contents:
+- `TF_luna/Start_TF_Luna_Wizard_macOS.command`
+  - macOS 双击启动入口，检查 Python 后打开同一套向导。
 
-1. `arduino/devices/190cmBar_device_status_led/190cmBar_device_status_led.ino`: linked device firmware with D13 status feedback.
-2. `arduino/devices/190cmBar_device/190cmBar_device.ino`: retained base linked device firmware without status feedback.
-3. `arduino/controllers/presence_group_controller_2devices_sr602/presence_group_controller_2devices_sr602.ino`: two-device SR602 controller.
-4. `arduino/controllers/presence_group_controller_2devices_tfluna/presence_group_controller_2devices_tfluna.ino`: two-device TF-Luna three-wire Digital OUT controller.
-5. `arduino/controllers/presence_group_controller/presence_group_controller.ino`: retained older three-device controller sketch.
-6. `arduino/tests/`: temporary on-site diagnostic sketches.
-7. `arduino/libraries/HLK_LD2410_config/`: reference LD2410 UART configuration library.
-8. `arduino/legacy/190cmBar_device_no_led_only/190cmBar_device_no_led_only.ino`: standalone random-motion version without external RUN/RESET inputs; the LED control path is removed.
+- `TF_luna/configure_tf_luna.py`
+  - Windows/macOS 共用核心程序。
+  - 支持真机测距、自动找端口、四项参数输入、固定 Mode 1、HEX 生成、写入、保存和断电验证。
+  - 支持完全不访问串口的 DEMO 模式。
 
-Start from these documents:
+- `TF_luna/proposed_hex_commands.txt`
+  - 当前拟定参数对应的 TF-Luna 十六进制命令，供人工核对。
 
-- `index.md`
-- `docs/development_requirements.md`
-- `docs/communication_model.md`
-- `docs/wiring_guide.md`
+TF-Luna 工具的完整流程见 `TF_luna/README.md`。
+
+## 保留版本
+
+- `arduino/controllers/presence_group_controller/presence_group_controller.ino`
+  - 保留的旧三装置 Presence Group Controller。
+
+- `arduino/devices/190cmBar_device/190cmBar_device.ino`
+  - 保留的无 D13 状态灯装置联动版，使用 D2 RUN 和 D3 RESET。
+
+- `arduino/legacy/190cmBar_device_no_led_only/190cmBar_device_no_led_only.ino`
+  - 不包含外部 RUN/RESET 的自主随机运行版本。
+
+## 临时测试代码
+
+以下文件用于现场排查，不是正式安装固件：
+
+- `arduino/tests/sensor_pin_test/sensor_pin_test.ino`
+  - 检查控制器 D2 数字输入和 D13 指示灯。
+
+- `arduino/tests/sensor_serial_read_test/sensor_serial_read_test.ino`
+  - 在 Serial Monitor 显示 LD2410 数字 OUT，并用 D13 显示 presence。
+
+- `arduino/tests/presence_group_controller_no_hold_test/presence_group_controller_no_hold_test.ino`
+  - 去掉长时间 RUN 保持，用于观察即时传感器响应。
+
+- `arduino/tests/presence_group_controller_no_bus_relay_test/presence_group_controller_no_bus_relay_test.ino`
+  - 关闭 D3 联动 Bus，单独测试本地传感器和继电器。
+
+- `arduino/tests/presence_group_controller_runtime_reset_test/presence_group_controller_runtime_reset_test.ino`
+  - 使用缩短时间测试单台装置累计运行和 RESET 队列。
+
+- `arduino/tests/presence_group_controller_runtime_bus_test/presence_group_controller_runtime_bus_test.ino`
+  - 使用缩短时间同时测试累计运行、RESET 队列和 D3 Bus。
+
+## 参考代码与详细文档
+
+- `arduino/libraries/HLK_LD2410_config/`
+  - LD2410 UART 配置参考库，不是当前 TF-Luna 正式方案。
+
+- `arduino/README.md`
+  - Arduino 目录代码索引。
+
+- `docs/`
+  - 旧三装置系统的设计、接线、通信和更新记录；当前双装置接线以两个双装置控制器目录及正式装置目录内 README 为准。

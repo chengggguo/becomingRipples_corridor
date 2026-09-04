@@ -19,8 +19,8 @@ const float HomePointY = topleftYX[0];
 #define stepPinRight 6
 #define dirPinRight 7
 
-const int triggerPin = 2;       // LOW = RUN, HIGH = IDLE
-const int resetRequestPin = 3;  // LOW = AUTOHOME/RESET request
+const int triggerPin = A1;       // A1 used as digital input: LOW = RUN, HIGH = IDLE
+const int resetRequestPin = A2;  // A2 used as digital input: LOW = AUTOHOME/RESET request
 const int statusLedPin = 13;     // OFF = IDLE, ON = RUN, fast blink = AUTOHOME
 const unsigned long statusLedBlinkIntervalMs = 150UL;
 

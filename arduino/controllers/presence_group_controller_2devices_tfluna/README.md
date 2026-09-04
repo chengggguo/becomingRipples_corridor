@@ -52,35 +52,35 @@ Nano D2                    -> 约 10kΩ 下拉电阻 -> Nano GND
 D2  <- TF-Luna Pin 6 Digital OUT
 D3  <-> 另一排控制器的 active-low 联动 Bus
 
-D5  -> Relay CH1 -> 装置 A D2 RUN
-D6  -> Relay CH2 -> 装置 A D3 RESET
-D7  -> Relay CH3 -> 装置 B D2 RUN
-D8  -> Relay CH4 -> 装置 B D3 RESET
+D5  -> Relay CH1 -> 装置 A A1 RUN
+D6  -> Relay CH2 -> 装置 A A2 RESET
+D7  -> Relay CH3 -> 装置 B A1 RUN
+D8  -> Relay CH4 -> 装置 B A2 RESET
 D13 -> 本控制器 RUN 状态灯
 ```
 
-特别注意：控制器侧和装置侧都使用了 D2/D3，但它们不是同一块 Arduino：
+特别注意：控制器侧 D2/D3 与装置侧 A1/A2 属于不同 Arduino：
 
 - **传感器控制器 D2**：读取 TF-Luna Digital OUT。
 - **传感器控制器 D3**：两块传感器控制器之间的联动 Bus。
-- **装置 Arduino D2**：RUN 输入，继电器闭合时被接到该装置 GND。
-- **装置 Arduino D3**：RESET/AUTOHOME 输入，继电器闭合时被接到该装置 GND。
+- **装置 Arduino A1**：作为数字 RUN 输入，继电器闭合时被接到该装置 GND。
+- **装置 Arduino A2**：作为数字 RESET/AUTOHOME 输入，继电器闭合时被接到该装置 GND。
 
 ## 继电器触点侧接法
 
 ```text
-Relay CH1 NO  -> 装置 A Arduino D2 RUN
+Relay CH1 NO  -> 装置 A Arduino A1 RUN
 Relay CH1 COM -> 装置 A Arduino GND
-Relay CH2 NO  -> 装置 A Arduino D3 RESET
+Relay CH2 NO  -> 装置 A Arduino A2 RESET
 Relay CH2 COM -> 装置 A Arduino GND
 
-Relay CH3 NO  -> 装置 B Arduino D2 RUN
+Relay CH3 NO  -> 装置 B Arduino A1 RUN
 Relay CH3 COM -> 装置 B Arduino GND
-Relay CH4 NO  -> 装置 B Arduino D3 RESET
+Relay CH4 NO  -> 装置 B Arduino A2 RESET
 Relay CH4 COM -> 装置 B Arduino GND
 ```
 
-同一台装置对应的两个 COM 可以互联，共用该装置自己的 GND。NO 触点闭合后，相当于把装置 D2 或 D3 暂时接地。NC 不使用。
+同一台装置对应的两个 COM 可以互联，共用该装置自己的 GND。NO 触点闭合后，相当于把装置 A1 或 A2 暂时接地。NC 不使用。
 
 ## 与 SR602 版相比调整了什么
 

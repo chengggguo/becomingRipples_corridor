@@ -20,6 +20,7 @@ from typing import Iterable
 
 
 MINIMUM_PYTHON = (3, 8)
+TF_LUNA_ON_OFF_MODE = 1  # Must match Nano SENSOR_ACTIVE_HIGH=true.
 
 
 def u16_le(value: int) -> bytes:
@@ -405,14 +406,33 @@ def run_wizard(args: argparse.Namespace, serial_module, list_ports_module) -> bo
             args.stop_after_measurement = True
             return True
 
-    print("\n请依次输入五项参数；直接按 Enter 使用方括号中的默认值。")
-    print("Mode 1：物体近于 Dist 时 Pin 6 输出 HIGH（本项目推荐）。")
-    print("Mode 2：物体近于 Dist 时 Pin 6 输出 LOW。")
-    args.mode = prompt_int("1/5 Mode", args.mode, 1, 2)
-    args.distance = prompt_int("2/5 Dist / trigger distance (cm)", args.distance, 1, 800)
-    args.zone = prompt_int("3/5 Zone / hysteresis width (cm)", args.zone, 0, 800)
-    args.delay_in = prompt_int("4/5 Delay1 / approach delay (ms)", args.delay_in, 0, 65535)
-    args.delay_out = prompt_int("5/5 Delay2 / leave delay (ms)", args.delay_out, 0, 65535)
+    print("\nMode 已固定为 1：检测到近距离目标时 Pin 6 输出 HIGH。")
+    print("原因：本项目 Nano D2 的 SENSOR_ACTIVE_HIGH=true，presence 必须是 HIGH。")
+    print("请依次输入四项可调参数；直接按 Enter 使用方括号中的默认值。")
+    args.distance = prompt_int(
+        "1/4 Dist / 触发距离（厘米）：实测距离小于此值时判定有人",
+        args.distance,
+        1,
+        800,
+    )
+    args.zone = prompt_int(
+        "2/4 Zone / 释放回差（厘米）：离开距离需大于 Dist + Zone",
+        args.zone,
+        0,
+        800,
+    )
+    args.delay_in = prompt_int(
+        "3/4 Delay1 / 进入确认延迟（毫秒）：近距离持续多久才输出 HIGH",
+        args.delay_in,
+        0,
+        65535,
+    )
+    args.delay_out = prompt_int(
+        "4/4 Delay2 / 离开确认延迟（毫秒）：远距离持续多久才输出 LOW",
+        args.delay_out,
+        0,
+        65535,
+    )
 
     # Keep weak-signal dummy output safely beyond the release threshold.
     args.dummy_distance = max(
@@ -546,7 +566,6 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--port", help="COM5 on Windows or /dev/cu.* on macOS")
     parser.add_argument("--baudrate", type=int, default=115200)
-    parser.add_argument("--mode", type=int, choices=(1, 2), default=1)
     parser.add_argument("--distance", type=int, default=370, help="Dist in cm")
     parser.add_argument("--zone", type=int, default=20, help="Zone in cm")
     parser.add_argument("--delay-in", type=int, default=0, help="Delay1 in ms")
@@ -567,7 +586,7 @@ def parse_args() -> argparse.Namespace:
     action.add_argument(
         "--wizard",
         action="store_true",
-        help="Auto-detect TF-Luna, ask for five values, preview, and write.",
+        help="Auto-detect TF-Luna, ask for four values, preview, and write.",
     )
     action.add_argument(
         "--demo",
@@ -588,6 +607,7 @@ def main() -> int:
         return 2
 
     args = parse_args()
+    args.mode = TF_LUNA_ON_OFF_MODE
 
     if args.demo:
         args.wizard = True

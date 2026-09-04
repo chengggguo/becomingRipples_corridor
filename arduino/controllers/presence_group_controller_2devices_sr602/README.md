@@ -13,10 +13,10 @@ Arduino sketch 的目录名和主 `.ino` 文件名保持一致。使用 SR602 �
 D2  <- SR602 数字 OUT（检测到人体移动时为 HIGH）
 D3  <-> 另一排控制器的 active-low Bus
 
-D5  -> Relay CH1 -> 装置 A D2 RUN
-D6  -> Relay CH2 -> 装置 A D3 AUTOHOME/RESET
-D7  -> Relay CH3 -> 装置 B D2 RUN
-D8  -> Relay CH4 -> 装置 B D3 AUTOHOME/RESET
+D5  -> Relay CH1 -> 装置 A A1 RUN
+D6  -> Relay CH2 -> 装置 A A2 AUTOHOME/RESET
+D7  -> Relay CH3 -> 装置 B A1 RUN
+D8  -> Relay CH4 -> 装置 B A2 AUTOHOME/RESET
 ```
 
 每台装置使用两路独立继电器。对应两路继电器的 COM 可以共同连接该装置自身的 GND。
@@ -24,14 +24,14 @@ D8  -> Relay CH4 -> 装置 B D3 AUTOHOME/RESET
 继电器触点侧接法：
 
 ```text
-Relay CH1 NO  -> 装置 A Arduino D2
+Relay CH1 NO  -> 装置 A Arduino A1
 Relay CH1 COM -> 装置 A Arduino GND
-Relay CH2 NO  -> 装置 A Arduino D3
+Relay CH2 NO  -> 装置 A Arduino A2
 Relay CH2 COM -> 装置 A Arduino GND
 
-Relay CH3 NO  -> 装置 B Arduino D2
+Relay CH3 NO  -> 装置 B Arduino A1
 Relay CH3 COM -> 装置 B Arduino GND
-Relay CH4 NO  -> 装置 B Arduino D3
+Relay CH4 NO  -> 装置 B Arduino A2
 Relay CH4 COM -> 装置 B Arduino GND
 ```
 
