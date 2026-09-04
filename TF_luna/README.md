@@ -3,7 +3,9 @@
 ## 本目录文件
 
 - `proposed_hex_commands.txt`：基于当前房间假设生成的拟定十六进制命令。
-- `configure_tf_luna.py`：Windows/macOS 通用配置工具；默认只打印命令，加入 `--apply` 才会写入传感器。
+- `configure_tf_luna.py`：Windows/macOS 通用配置工具；`--wizard` 自动找端口并逐项询问参数，`--apply` 供熟悉参数后直接写入。
+- `Start_TF_Luna_Wizard_Windows.bat`：Windows 双击启动入口，检查 Python 后打开向导。
+- `Start_TF_Luna_Wizard_macOS.command`：macOS 双击启动入口，检查 Python 后打开向导。
 - `README.md`：CP2102 接线、参数含义、官方 GUI 能力和到货测试流程。
 
 ## 当前拟定参数，不是最终现场值
@@ -112,6 +114,70 @@ macOS：
 python3 -m pip install pyserial
 ```
 
+### 推荐：交互式向导
+
+先关闭北醒 GUI、Arduino Serial Monitor 和其他串口程序。
+
+Windows 直接双击：
+
+```text
+Start_TF_Luna_Wizard_Windows.bat
+```
+
+macOS 直接双击：
+
+```text
+Start_TF_Luna_Wizard_macOS.command
+```
+
+两个启动器都检查 Python 3.8 或更高版本，然后运行同一个 `configure_tf_luna.py`。如果 pySerial 尚未安装，向导会询问是否为当前用户自动安装。没有 Python 时，启动器会显示官方下载地址；由于安装 Python 会修改系统环境，脚本不会擅自安装它。
+
+如果 macOS 第一次阻止打开 `.command`，在 Finder 中右键该文件选择“打开”。如果文件失去可执行权限，在 Terminal 运行一次：
+
+```bash
+chmod +x Start_TF_Luna_Wizard_macOS.command
+```
+
+也可以从 Terminal 手动运行。
+
+Windows：
+
+```powershell
+py configure_tf_luna.py --wizard
+```
+
+macOS：
+
+```bash
+python3 configure_tf_luna.py --wizard
+```
+
+向导会：
+
+1. 枚举串口，优先检查 CP210x；先监听 TF 系列 `59 59` 测距帧，必要时只发送固件版本查询，不修改任何参数。
+2. 找到唯一匹配端口后自动选择；多个匹配时让用户选择，无法识别时允许手动输入端口。
+3. 询问是否进行现场参考测距；可以依次采样门关闭、门打开、门摆动和三个进人位置。
+4. 每个场景连续读取 5 秒，校验官方 `59 59` 数据帧，过滤 Amp 小于 100 或等于 65535 的不可靠读数，显示距离最小值/中位数/最大值。
+5. 把全部可靠原始样本保存为带时间戳的 CSV，并用空场景最低值减 40 cm 生成 Dist 的输入默认值；这是建议值，不会直接写入。
+6. 询问是否继续配置；选择否即可只完成测距并退出，TF-Luna 不会被修改。
+7. 依次询问 Mode、Dist、Zone、Delay1、Delay2，直接按 Enter 使用方括号中的默认值。
+8. 自动把五项数值编码为小端序十六进制帧，并自动设置弱信号保护参数。
+9. 显示每一条最终 HEX；只有准确输入大写 `WRITE` 才开始发送。
+10. 逐条发送设置、保存并读回。
+11. 提示断电重启；按 Enter 后自动重新识别端口并只读验证，整个流程不需要退出向导。
+
+扫描会短暂打开候选串口；部分 Arduino 会因串口被打开而复位一次。配置时最好只连接 CP2102 和 TF-Luna。
+
+### Terminal 测距依据与限制
+
+这项功能有官方协议依据，不是模拟数据。TF-Luna 出厂默认 UART 格式为 `9-byte/cm`：帧头 `59 59`，随后是距离低/高字节、Amp 低/高字节、温度低/高字节和校验和。脚本按该格式直接读取，与官方 GUI 使用的是同一串口数据源。
+
+脚本不能识别门的物理状态；“门打开”等标签由用户摆好现场后按 Enter 指定。若传感器已被改成 PIX、毫米或时间戳格式，或者串口输出已关闭，向导不会猜测数据，而会报告没有收到有效 `59 59` 帧；此时应先用官方 GUI 检查输出格式。
+
+官方依据：[TF-Luna 用户手册 Appendix I Serial Port Output Format](https://en.benewake.com/uploadfiles/2025/04/20250430174515390.pdf)。手册同时说明 Amp 小于 100 或等于 65535 时距离不可靠，因此这些数据不会参与建议值计算。
+
+### 非交互方式
+
 只检查拟定帧，不连接、不写入：
 
 ```powershell
@@ -127,8 +193,10 @@ python configure_tf_luna.py --port COM5 --apply
 脚本会依次发送设置帧、明确的保存帧和一次立即读回。然后给 TF-Luna 断电重启，再执行只读验证：
 
 ```powershell
-python configure_tf_luna.py --port COM5 --verify-only
+python configure_tf_luna.py --verify-only
 ```
+
+省略 `--port` 时，只读验证也会自动扫描；也可以明确写成 `--port COM5 --verify-only`。
 
 macOS 实际写入示例：
 
