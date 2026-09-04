@@ -1,6 +1,6 @@
 /*
   Becoming Ripples - Presence Group Controller - TF-Luna Digital OUT
-  Board / 开发板: Arduino Nano R3 / Uno compatible / 兼容
+  Board / 开发板: Arduino Nano R3
 
   ENGLISH
   One controller serves one row of two 190cmBar devices. The TF-Luna is
@@ -40,6 +40,7 @@
   RUN；尚未复位的设备会保留在队列中，等再次空闲时继续。
 */
 
+// Add an external 10k pulldown from D2 to GND so a disconnected sensor reads LOW.
 const int sensorPin = 2; // TF-Luna pin 6: on/off mode Digital OUT.
 const int busPin = 3;
 const int deviceCount = 2;

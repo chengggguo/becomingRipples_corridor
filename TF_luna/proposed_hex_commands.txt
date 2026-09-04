@@ -1,0 +1,65 @@
+TF-Luna PROVISIONAL HEX COMMANDS
+TF-Luna 拟定十六进制命令
+================================
+
+IMPORTANT / 重要
+----------------
+These are commissioning defaults based on an assumed minimum empty-room
+distance of 410 cm. Measure the real room before applying them.
+
+以下参数建立在“空房间最低读数为 410 cm”的假设上。TF-Luna 到货后必须
+先测量门关闭、门打开和无人状态下的最低读数，再决定是否写入。
+
+Provisional behavior / 拟定行为
+-------------------------------
+Mode       = 1      Pin 6 HIGH when closer
+Dist       = 370 cm (410 cm minimum empty distance - 40 cm margin)
+Zone       = 20 cm  release threshold = 390 cm
+Delay1     = 0 ms   Nano performs the 100 ms rising-edge qualification
+Delay2     = 300 ms
+Amp limit  = 100
+Dummy Dist = 500 cm (must be greater than Dist + Zone)
+
+Frame format / 帧格式
+---------------------
+5A | Length | Command ID | Payload | Checksum
+
+Multi-byte values use little-endian order. The checksum is the low 8 bits of
+the sum of every preceding byte in the frame.
+
+Commands / 命令
+---------------
+
+1. Read firmware version / 读取固件版本
+   5A 04 01 5F
+
+2. Set Amp threshold=100 and low-signal dummy distance=500 cm
+   设置弱信号阈值 100、弱信号虚拟距离 500 cm
+   5A 07 22 0A F4 01 82
+
+3. Set on/off mode: Mode=1, Dist=370, Zone=20, Delay1=0, Delay2=300
+   写入 on/off 模式拟定参数
+   5A 0D 3B 01 72 01 14 00 00 00 2C 01 57
+
+4. Save current settings / 保存当前设置
+   5A 04 11 6F
+
+5. Read back on/off configuration / 读回 on/off 配置
+   5A 05 3F 3B D9
+
+6. Optional software reset / 可选软件重启
+   5A 04 02 60
+
+Expected read-back payload / 预期读回参数
+-----------------------------------------
+Mode       01
+Dist       72 01
+Zone       14 00
+Delay1     00 00
+Delay2     2C 01
+
+Do not paste these bytes into a plain-text terminal. Use a HEX/binary send
+mode, or use configure_tf_luna.py in this directory.
+
+不要用普通文本模式发送这些字符。必须使用 HEX/二进制发送模式，或者使用
+本目录中的 configure_tf_luna.py。

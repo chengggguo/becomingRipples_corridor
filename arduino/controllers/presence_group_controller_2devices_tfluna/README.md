@@ -36,12 +36,15 @@ const bool SENSOR_ACTIVE_HIGH = true;
 TF-Luna Pin 1  +5V          -> 稳定的 5V 电源
 TF-Luna Pin 4  GND          -> 传感器控制 Arduino GND
 TF-Luna Pin 6  Digital OUT  -> 传感器控制 Arduino D2
+Nano D2                    -> 约 10kΩ 下拉电阻 -> Nano GND
 ```
 
 - Pin 2 RX、Pin 3 TX 在正式运行时不接 Arduino。
 - Pin 5 不接地，保持 UART/on-off 使用的模式；接地会切换为 I2C 模式。
 - 不要只按线材颜色判断引脚，按 TF-Luna 插头的实际 Pin 编号核对。
 - Digital OUT 是信号线，必须与 Arduino 共地，否则 D2 没有可靠的电压参考。
+- D2 使用外部约 10kΩ 下拉；TF-Luna 未接、掉电或信号线断开时，控制器会稳定读到 LOW，而不是悬空误触发。
+- 拟定 HEX、CP2102 配置脚本和到货测试流程见项目根目录 `TF_luna/`。
 
 ## 控制器全部相关引脚
 
