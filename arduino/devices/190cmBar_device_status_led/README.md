@@ -2,7 +2,7 @@
 
 ## 文件
 
-`190cmBar_device_status_led.ino` 是装置 Arduino 的正式联动代码，接收外部 RUN 和 RESET 信号，控制两台步进电机、舵机、左右 Hall 传感器，并通过 D13 显示状态。
+`190cmBar_device_status_led.ino` 是装置侧 Arduino Uno 的正式联动代码，接收外部 RUN 和 RESET 信号，控制两台步进电机、舵机、左右 Hall 传感器，并通过 D13 显示状态。传感器控制器使用 Nano，两块 Arduino 的引脚编号不要混淆。
 
 ## 接线
 
