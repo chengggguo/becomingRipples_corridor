@@ -55,7 +55,7 @@ const bool RELAY_ACTIVE_LOW = false; // HIGH turns the current relay module on.
 
 // TF-Luna already applies distance threshold, hysteresis and Delay1/Delay2.
 // This short controller-side filter only rejects very brief electrical glitches.
-const unsigned long sensorWarmupMs = 1000UL;
+const unsigned long sensorWarmupMs = 0UL; // No controller-side startup wait.
 const unsigned long presenceDebounceMs = 100UL;
 
 // Controller timing values are milliseconds.

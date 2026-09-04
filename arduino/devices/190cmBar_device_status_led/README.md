@@ -1,30 +1,57 @@
-# 190cmBar Device Firmware — D13 Status LED Version
+# 190cmBar Device — Status LED Version
 
-## 文件与作用
+## 文件
 
-- `190cmBar_device_status_led.ino`：以正式联动装置固件为基础，保留 D2 RUN/IDLE、D3 AUTOHOME/RESET、步进、舵机、Hall、watchdog 和随机运动逻辑，并增加 D13 板载 LED 状态反馈。
-- `README.md`：说明本版本的文件用途、灯光语义、实现方式和更新历史。
+`190cmBar_device_status_led.ino` 是装置 Arduino 的正式联动代码，接收外部 RUN 和 RESET 信号，控制两台步进电机、舵机、左右 Hall 传感器，并通过 D13 显示状态。
 
-旧文件 `arduino/devices/190cmBar_device/190cmBar_device.ino` 保留不变。需要 D13 状态反馈时，应上传本目录中的 `190cmBar_device_status_led.ino`。
+## 接线
 
-## D13 状态反馈
+装置端的 RUN 和 RESET 都是低电平有效，代码使用 `INPUT_PULLUP`：
 
 ```text
-D13 熄灭    -> IDLE
-D13 常亮    -> RUN
-D13 150ms间隔快闪 -> 正在执行启动归零或 D3 请求触发的 AUTOHOME/RESET
+装置 Arduino D2 = RUN
+装置 Arduino D3 = RESET / AUTOHOME
 ```
 
-D3 请求如果在 RUN 中出现，只会先记录为 `pendingReset`；此时 D13 继续常亮。装置真正进入 IDLE 并开始执行 `autoHome()` 后，D13 才开始快闪。归零及随机待机移动完成后，D13 熄灭。
+继电器触点接法：
 
-## 非阻塞实现
+```text
+RUN 继电器 NO  -> 装置 Arduino D2
+RUN 继电器 COM -> 装置 Arduino GND
 
-LED 闪烁通过 `millis()` 判断时间，没有增加用于闪灯的 `delay()`。状态更新被插入现有的 watchdog 延时、步进运动和左右 Hall 寻零循环，因此 AUTOHOME 期间仍能持续闪烁，同时不额外阻塞机械控制流程。
+RESET 继电器 NO  -> 装置 Arduino D3
+RESET 继电器 COM -> 装置 Arduino GND
+```
 
-## 更新历史
+继电器吸合时，会把对应输入引脚接到装置自身的 GND。同一台装置的 RUN、RESET 两路 COM 可以互联并共用该装置 GND，NC 不接。
 
-### 2026-08-15
+当前其他相关引脚：
 
-- 从正式联动装置固件派生 D13 状态灯版本，不覆盖旧文件。
-- 新增 IDLE 熄灭、RUN 常亮、AUTOHOME/RESET 快闪。
-- 在长时间循环中加入非阻塞状态灯刷新。
+```text
+D5 / D4   = 左步进电机 STEP / DIR
+D6 / D7   = 右步进电机 STEP / DIR
+D8 / D9   = 左右驱动器 ENABLE
+D10       = 舵机
+D11 / D12 = 左右 Hall 传感器
+D13       = 状态灯
+```
+
+因此 D11、D12 和 D13 目前不能直接改作 RUN/RESET，除非同时迁移 Hall 引脚或取消状态灯。
+
+## 运行逻辑
+
+1. 开机后先执行 AUTOHOME，通过 D11、D12 两个 Hall 信号建立机械原点。
+2. 归零完成后移动到一个随机待机位置，进入 IDLE。
+3. D2 被继电器接地后，装置立即进入 RUN，舵机先摆动一次。
+4. RUN 持续期间，每轮先随机等待 1–10 秒，然后移动到绘画范围内的随机位置；如果 RUN 仍有效，舵机摆动一次，再开始下一轮。
+5. D2 断开、恢复 HIGH 后，当前正在执行的动作不会被强行中断。该轮结束后退出 RUN，再移动到一个随机待机位置。
+6. D3 被继电器接地时提出 RESET 请求。IDLE 时立即执行 AUTOHOME；如果正在 RUN，则先记录请求，待 RUN 结束后再执行。
+7. 每次 AUTOHOME 完成后都会移动到新的随机待机位置。
+
+## D13 状态
+
+```text
+熄灭 = IDLE
+常亮 = RUN
+快闪 = 正在 AUTOHOME / RESET
+```
