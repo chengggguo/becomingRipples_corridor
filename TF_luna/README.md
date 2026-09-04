@@ -132,6 +132,21 @@ Start_TF_Luna_Wizard_macOS.command
 
 两个启动器都检查 Python 3.8 或更高版本，然后运行同一个 `configure_tf_luna.py`。如果 pySerial 尚未安装，向导会询问是否为当前用户自动安装。没有 Python 时，启动器会显示官方下载地址；由于安装 Python 会修改系统环境，脚本不会擅自安装它。
 
+双击后首先选择：
+
+```text
+1 = 真机模式
+2 = DEMO 无硬件演示模式
+```
+
+DEMO 会走完端口选择后的全部流程：六个场景的模拟测距、CSV、五参数输入、HEX 预览、`WRITE` 确认、模拟保存以及模拟断电验证。它在代码底层直接禁止打开串口和发送数据，所有模拟输出与文件名都会带 `DEMO`。因此没有 TF-Luna 时可以放心熟悉操作，但模拟距离不能用于正式现场参数。
+
+也可以从 Terminal 直接启动演示：
+
+```powershell
+py configure_tf_luna.py --demo
+```
+
 如果 macOS 第一次阻止打开 `.command`，在 Finder 中右键该文件选择“打开”。如果文件失去可执行权限，在 Terminal 运行一次：
 
 ```bash

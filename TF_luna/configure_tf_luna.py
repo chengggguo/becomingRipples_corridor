@@ -219,6 +219,37 @@ def prompt_int(label: str, default: int, minimum: int, maximum: int) -> int:
 
 
 def capture_scene(serial_module, args: argparse.Namespace, label: str, seconds=5.0):
+    if getattr(args, "demo_mode", False):
+        demo_bases = {
+            "门关闭、无人": (418, 2),
+            "门打开、无人": (415, 2),
+            "门正在摆动、无人": (410, 6),
+            "人刚进入门口": (345, 4),
+            "人进入约 20 cm": (325, 3),
+            "人进入约 40 cm": (305, 3),
+        }
+        base, spread = demo_bases[label]
+        samples = []
+        for index in range(50):
+            offset = (index % (spread * 2 + 1)) - spread
+            samples.append(
+                {
+                    "distance_cm": base + offset,
+                    "strength": 240 + (index * 17) % 180,
+                    "temperature_c": 25.0 + (index % 5) * 0.125,
+                }
+            )
+        distances = [sample["distance_cm"] for sample in samples]
+        strengths = [sample["strength"] for sample in samples]
+        print(f"[DEMO] 模拟采样 {seconds:.0f} 秒：{label}")
+        print(
+            f"[DEMO] 有效 {len(samples)}/{len(samples)} 帧；"
+            f"距离 min/median/max = {min(distances)}/"
+            f"{statistics.median(distances):.1f}/{max(distances)} cm；"
+            f"Amp 中位数 = {statistics.median(strengths):.0f}"
+        )
+        return samples
+
     print(f"正在采样 {seconds:.0f} 秒：{label}")
     try:
         with serial_module.Serial(
@@ -262,9 +293,10 @@ def capture_scene(serial_module, args: argparse.Namespace, label: str, seconds=5
     return reliable
 
 
-def save_measurements(records) -> Path:
+def save_measurements(records, demo_mode=False) -> Path:
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    output_path = Path(__file__).resolve().parent / f"tf_luna_measurements_{timestamp}.csv"
+    prefix = "tf_luna_demo_measurements" if demo_mode else "tf_luna_measurements"
+    output_path = Path(__file__).resolve().parent / f"{prefix}_{timestamp}.csv"
     with output_path.open("w", newline="", encoding="utf-8-sig") as handle:
         writer = csv.DictWriter(
             handle,
@@ -309,8 +341,10 @@ def run_measurement_wizard(serial_module, args: argparse.Namespace):
             records.append({"scene": label, "sample": number, **sample})
 
     if records:
-        output_path = save_measurements(records)
-        print(f"\n原始测距记录已保存：{output_path}")
+        demo_mode = getattr(args, "demo_mode", False)
+        output_path = save_measurements(records, demo_mode=demo_mode)
+        label = "演示数据" if demo_mode else "原始测距记录"
+        print(f"\n{label}已保存：{output_path}")
 
     empty_results = [item for item in summaries if item["is_empty"]]
     if empty_results:
@@ -344,9 +378,14 @@ def run_measurement_wizard(serial_module, args: argparse.Namespace):
 def run_wizard(args: argparse.Namespace, serial_module, list_ports_module) -> bool:
     print("TF-Luna guided configuration / 交互式配置")
     print(f"Python {sys.version.split()[0]}: OK")
-    print(f"pySerial {getattr(serial_module, '__version__', 'available')}: OK")
+    if getattr(args, "demo_mode", False):
+        print("*** DEMO / 无硬件演示模式：不会打开串口，不会发送任何数据 ***")
+        print("pySerial：演示模式不需要")
+        args.port = "DEMO_TF_LUNA"
+    else:
+        print(f"pySerial {getattr(serial_module, '__version__', 'available')}: OK")
     print("继续前请关闭北醒 GUI、Arduino Serial Monitor 和其他串口程序。")
-    if not args.port:
+    if not args.port and not getattr(args, "demo_mode", False):
         args.port = choose_detected_port(
             serial_module, list_ports_module, args.baudrate
         )
@@ -402,6 +441,29 @@ def describe_on_off_reply(frame: bytes):
 
 
 def send_sequence(serial_module, args: argparse.Namespace, commands) -> bool:
+    if getattr(args, "demo_mode", False):
+        print("\n[DEMO] 以下步骤仅模拟，不会打开串口或发送字节：")
+        for label, frame in commands:
+            print(f"[DEMO] Would send {label}: {hex_text(frame)}")
+            if frame[2] == 0x3F:
+                payload = (
+                    bytes((0x3B, args.mode))
+                    + u16_le(args.distance)
+                    + u16_le(args.zone)
+                    + u16_le(args.delay_in)
+                    + u16_le(args.delay_out)
+                )
+                reply = make_frame(0x3F, payload)
+                print(f"[DEMO] Simulated reply: {hex_text(reply)}")
+                decoded = describe_on_off_reply(reply)
+                print(
+                    "[DEMO] Decoded on/off settings: "
+                    f"Mode={decoded['mode']}, Dist={decoded['distance']} cm, "
+                    f"Zone={decoded['zone']} cm, Delay1={decoded['delay_in']} ms, "
+                    f"Delay2={decoded['delay_out']} ms"
+                )
+        return True
+
     print(f"\nOpening {args.port} at {args.baudrate} baud...")
     try:
         with serial_module.Serial(
@@ -507,6 +569,11 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Auto-detect TF-Luna, ask for five values, preview, and write.",
     )
+    action.add_argument(
+        "--demo",
+        action="store_true",
+        help="Run the complete wizard with simulated data and no serial access.",
+    )
     return parser.parse_args()
 
 
@@ -522,9 +589,21 @@ def main() -> int:
 
     args = parse_args()
 
+    if args.demo:
+        args.wizard = True
+        args.demo_mode = True
+    elif args.wizard:
+        print("选择运行模式：")
+        print("  1. 真机模式：连接 CP2102 和 TF-Luna")
+        print("  2. DEMO：无传感器走完整流程，不打开串口")
+        mode_choice = input("请输入 1 或 2 [1]：").strip()
+        args.demo_mode = mode_choice == "2"
+    else:
+        args.demo_mode = False
+
     serial_module = None
     list_ports_module = None
-    if args.apply or args.verify_only or args.wizard:
+    if args.apply or args.verify_only or (args.wizard and not args.demo_mode):
         serial_module, list_ports_module = load_pyserial(offer_install=args.wizard)
         if serial_module is None:
             return 2
@@ -545,7 +624,9 @@ def main() -> int:
 
     selected_commands = [commands[0], commands[-1]] if args.verify_only else commands
 
+    demo_prefix = "[DEMO] " if args.demo_mode else ""
     heading = "Read-only TF-Luna frames:" if args.verify_only else "Proposed TF-Luna frames:"
+    heading = demo_prefix + heading
     print(heading)
     for label, frame in selected_commands:
         print(f"  {label}: {hex_text(frame)}")
@@ -586,14 +667,17 @@ def main() -> int:
                 "准备好后按 Enter 开始只读验证，或输入 SKIP 跳过："
             ).strip().upper()
             if answer != "SKIP":
-                matched, reason = probe_tf_luna(
-                    serial_module, args.port, args.baudrate
-                )
-                if not matched:
-                    print(f"原串口未确认（{reason}），现在重新扫描。")
-                    args.port = choose_detected_port(
-                        serial_module, list_ports_module, args.baudrate
+                if args.demo_mode:
+                    print("[DEMO] 模拟重新上电和串口恢复：OK")
+                else:
+                    matched, reason = probe_tf_luna(
+                        serial_module, args.port, args.baudrate
                     )
+                    if not matched:
+                        print(f"原串口未确认（{reason}），现在重新扫描。")
+                        args.port = choose_detected_port(
+                            serial_module, list_ports_module, args.baudrate
+                        )
                 if not args.port:
                     print("Verification cancelled: no serial port selected.")
                     return 1
