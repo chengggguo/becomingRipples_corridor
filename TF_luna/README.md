@@ -124,10 +124,22 @@ Windows 实际写入示例：
 python configure_tf_luna.py --port COM5 --apply
 ```
 
+脚本会依次发送设置帧、明确的保存帧和一次立即读回。然后给 TF-Luna 断电重启，再执行只读验证：
+
+```powershell
+python configure_tf_luna.py --port COM5 --verify-only
+```
+
 macOS 实际写入示例：
 
 ```bash
 python3 configure_tf_luna.py --port /dev/cu.SLAB_USBtoUART --apply
+```
+
+macOS 断电重启后的只读验证：
+
+```bash
+python3 configure_tf_luna.py --port /dev/cu.SLAB_USBtoUART --verify-only
 ```
 
 现场测量后可以覆盖参数：

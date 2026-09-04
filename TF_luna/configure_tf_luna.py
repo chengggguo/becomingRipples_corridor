@@ -102,10 +102,16 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--delay-out", type=int, default=300, help="Delay2 in ms")
     parser.add_argument("--amp-threshold", type=int, default=100)
     parser.add_argument("--dummy-distance", type=int, default=500, help="cm")
-    parser.add_argument(
+    action = parser.add_mutually_exclusive_group()
+    action.add_argument(
         "--apply",
         action="store_true",
         help="Actually write to the connected TF-Luna; default is dry-run.",
+    )
+    action.add_argument(
+        "--verify-only",
+        action="store_true",
+        help="Read firmware and on/off settings without changing or saving them.",
     )
     return parser.parse_args()
 
@@ -118,17 +124,22 @@ def main() -> int:
         print(f"Configuration error: {error}", file=sys.stderr)
         return 2
 
-    print("Proposed TF-Luna frames:")
-    for label, frame in commands:
+    selected_commands = (
+        [commands[0], commands[-1]] if args.verify_only else commands
+    )
+
+    heading = "Read-only TF-Luna frames:" if args.verify_only else "Proposed TF-Luna frames:"
+    print(heading)
+    for label, frame in selected_commands:
         print(f"  {label}: {hex_text(frame)}")
 
-    if not args.apply:
+    if not args.apply and not args.verify_only:
         print("\nDry-run only. Nothing was written.")
         print("Add --port PORT --apply after checking real room measurements.")
         return 0
 
     if not args.port:
-        print("--port is required together with --apply", file=sys.stderr)
+        print("--port is required for --apply or --verify-only", file=sys.stderr)
         return 2
 
     try:
@@ -154,7 +165,7 @@ def main() -> int:
             time.sleep(0.3)
             device.reset_input_buffer()
 
-            for label, frame in commands:
+            for label, frame in selected_commands:
                 device.reset_input_buffer()
                 device.write(frame)
                 device.flush()
@@ -174,8 +185,11 @@ def main() -> int:
         print(f"Serial error: {error}", file=sys.stderr)
         return 1
 
-    print("\nConfiguration sequence completed.")
-    print("Power-cycle the sensor and read back ID 0x3B before installation.")
+    if args.verify_only:
+        print("\nRead-only verification completed. No settings were changed.")
+    else:
+        print("\nConfiguration sequence completed.")
+        print("Power-cycle the sensor, then run again with --verify-only.")
     return 0
 
 
