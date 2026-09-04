@@ -6,8 +6,10 @@
   Current linked 190cmBar device version with D13 status feedback: OFF in IDLE, steady ON in RUN, and non-blocking fast blink during AUTOHOME/RESET.
 - `devices/190cmBar_device/`
   Retained base firmware for each linked 190cmBar device, without D13 status feedback.
-- `controllers/presence_group_controller_2devices/`
-  Current two-device Presence Group Controller using D5/D6 for Device A and D7/D8 for Device B.
+- `controllers/presence_group_controller_2devices_sr602/`
+  Two-device SR602 version. The SR602 Digital OUT is read on controller D2.
+- `controllers/presence_group_controller_2devices_tfluna/`
+  Two-device TF-Luna Digital OUT version. The sensor is configured beforehand and uses only 5V, GND and Digital OUT during operation; OUT is read on controller D2.
 - `controllers/presence_group_controller/`
   Retained older three-device Presence Group Controller.
 
