@@ -35,8 +35,8 @@ const char ROW_ID = 'B'; // Use 'A' for one row, 'B' for the other row.
 const int sensorPin = 2;
 const int busPin = 3;
 const int deviceCount = 3;
-const int runRelayPins[deviceCount] = {5, 6, 7};
-const int resetRelayPins[deviceCount] = {8, 9, 10};
+const int runRelayPins[deviceCount] = {5, 7, 9};
+const int resetRelayPins[deviceCount] = {6, 8, 10};
 const int statusLedPin = 13;
 
 const bool SENSOR_ACTIVE_HIGH = true;

@@ -48,7 +48,8 @@ TF-Luna 工具的完整流程见 `TF_luna/README.md`。
   - 保留的旧三装置 Presence Group Controller。
 
 - `arduino/devices/190cmBar_device/190cmBar_device.ino`
-  - 保留的无 D13 状态灯装置联动版，使用 D2 RUN 和 D3 RESET。
+  - 装置本体自主循环测试版，不读取外部 RUN/RESET。
+  - 通电归零后反复执行“随机移动、舵机推动、等待 10 秒”。
 
 - `arduino/legacy/190cmBar_device_no_led_only/190cmBar_device_no_led_only.ino`
   - 不包含外部 RUN/RESET 的自主随机运行版本。

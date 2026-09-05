@@ -36,6 +36,7 @@
 - 将正式 Presence Group Controller 的 reset 调度改为“每台装置累计 RUN 时长达标后再排队 reset”，并保留 D3 Bus 联动。
 - 将正式 Presence Group Controller 的继电器默认极性改为高电平触发，以匹配现场测试的继电器模块。
 - 将两排错峰 reset 配置改为 `ROW_ID = 'A'/'B'`，A/B 可分别设置首次 reset 等待时间。
+- 将 Presence Group Controller 的六路继电器映射改为按装置成对排列：CH1/CH2 控制装置 1 的 RUN/RESET，CH3/CH4 控制装置 2，CH5/CH6 控制装置 3。
 
 ## English
 
@@ -73,3 +74,4 @@ This file records intentional changes to the toolbox and Arduino sketches.
 - Changed the production Presence Group Controller reset scheduler so each device is queued for reset only after its own accumulated RUN time reaches the threshold, while keeping D3 bus linking.
 - Changed the production Presence Group Controller default relay polarity to active-high to match the on-site relay module test.
 - Changed staggered row reset setup to `ROW_ID = 'A'/'B'`, allowing separate first-reset delays for Row A and Row B.
+- Changed the Presence Group Controller relay mapping to device-paired channels: CH1/CH2 control Device 1 RUN/RESET, CH3/CH4 control Device 2, and CH5/CH6 control Device 3.

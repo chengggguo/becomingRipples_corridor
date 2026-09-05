@@ -21,11 +21,10 @@ Nano D2  <- LD2410C OUT
 Nano D3  <-> other group controller D3 bus
 
 Nano D5  -> Relay IN1  RUN for device 1
-Nano D6  -> Relay IN2  RUN for device 2
-Nano D7  -> Relay IN3  RUN for device 3
-
-Nano D8  -> Relay IN4  AUTOHOME/RESET request for device 1
-Nano D9  -> Relay IN5  AUTOHOME/RESET request for device 2
+Nano D6  -> Relay IN2  AUTOHOME/RESET request for device 1
+Nano D7  -> Relay IN3  RUN for device 2
+Nano D8  -> Relay IN4  AUTOHOME/RESET request for device 2
+Nano D9  -> Relay IN5  RUN for device 3
 Nano D10 -> Relay IN6  AUTOHOME/RESET request for device 3
 ```
 
@@ -70,37 +69,31 @@ Nano D10 -> Relay IN6
 
 ### 继电器触点侧到装置
 
-继电器触点侧只作为每台装置自己的“外部按钮”。触点侧不要把三台装置的 GND 连接在一起。
+继电器触点侧只作为每台装置自己的“外部按钮”。触点侧不要把三台装置的 GND 连接在一起。同一台装置的 RUN 和 RESET 两个继电器 COM 可以并在一起，接到这台装置自己的 GND。
 
-RUN 继电器：
+按装置分组的触点接法：
 
 ```text
 Relay CH1 NO  -> Device 1 Arduino D2
 Relay CH1 COM -> Device 1 Arduino GND
 
-Relay CH2 NO  -> Device 2 Arduino D2
-Relay CH2 COM -> Device 2 Arduino GND
+Relay CH2 NO  -> Device 1 Arduino D3
+Relay CH2 COM -> Device 1 Arduino GND
 
-Relay CH3 NO  -> Device 3 Arduino D2
-Relay CH3 COM -> Device 3 Arduino GND
-```
+Relay CH3 NO  -> Device 2 Arduino D2
+Relay CH3 COM -> Device 2 Arduino GND
 
-装置端 `D2` 使用 `INPUT_PULLUP`。继电器闭合时，`D2` 被拉到本机 `GND`，装置读到 `LOW = RUN`。
+Relay CH4 NO  -> Device 2 Arduino D3
+Relay CH4 COM -> Device 2 Arduino GND
 
-AUTOHOME/RESET 请求继电器：
-
-```text
-Relay CH4 NO  -> Device 1 Arduino D3
-Relay CH4 COM -> Device 1 Arduino GND
-
-Relay CH5 NO  -> Device 2 Arduino D3
-Relay CH5 COM -> Device 2 Arduino GND
+Relay CH5 NO  -> Device 3 Arduino D2
+Relay CH5 COM -> Device 3 Arduino GND
 
 Relay CH6 NO  -> Device 3 Arduino D3
 Relay CH6 COM -> Device 3 Arduino GND
 ```
 
-装置端 `D3` 使用 `INPUT_PULLUP`。继电器闭合时，`D3` 被拉到本机 `GND`，装置读到 `LOW = AUTOHOME/RESET request`。
+其中 CH1/CH2 是装置 1，CH3/CH4 是装置 2，CH5/CH6 是装置 3。装置端 `D2` 和 `D3` 都使用 `INPUT_PULLUP`。继电器闭合时，对应输入脚被拉到本机 `GND`：`D2 LOW = RUN`，`D3 LOW = AUTOHOME/RESET request`。
 
 ### 推荐保护电阻
 
@@ -184,11 +177,10 @@ Nano D2  <- LD2410C OUT
 Nano D3  <-> other group controller D3 bus
 
 Nano D5  -> Relay IN1  RUN for device 1
-Nano D6  -> Relay IN2  RUN for device 2
-Nano D7  -> Relay IN3  RUN for device 3
-
-Nano D8  -> Relay IN4  AUTOHOME/RESET request for device 1
-Nano D9  -> Relay IN5  AUTOHOME/RESET request for device 2
+Nano D6  -> Relay IN2  AUTOHOME/RESET request for device 1
+Nano D7  -> Relay IN3  RUN for device 2
+Nano D8  -> Relay IN4  AUTOHOME/RESET request for device 2
+Nano D9  -> Relay IN5  RUN for device 3
 Nano D10 -> Relay IN6  AUTOHOME/RESET request for device 3
 ```
 
@@ -233,37 +225,31 @@ The current code assumes `RELAY_ACTIVE_LOW = false`, which matches the on-site a
 
 ### Relay Contact Side to Devices
 
-The relay contact side acts only as an "external button" for each device. Do not use the contact side to tie the three device grounds together.
+The relay contact side acts only as an "external button" for each device. Do not use the contact side to tie the three device grounds together. For the same device, the RUN and RESET relay COM terminals can be tied together and connected to that device's own GND.
 
-RUN relays:
+Device-grouped contact wiring:
 
 ```text
 Relay CH1 NO  -> Device 1 Arduino D2
 Relay CH1 COM -> Device 1 Arduino GND
 
-Relay CH2 NO  -> Device 2 Arduino D2
-Relay CH2 COM -> Device 2 Arduino GND
+Relay CH2 NO  -> Device 1 Arduino D3
+Relay CH2 COM -> Device 1 Arduino GND
 
-Relay CH3 NO  -> Device 3 Arduino D2
-Relay CH3 COM -> Device 3 Arduino GND
-```
+Relay CH3 NO  -> Device 2 Arduino D2
+Relay CH3 COM -> Device 2 Arduino GND
 
-Device-side `D2` uses `INPUT_PULLUP`. When the relay closes, `D2` is pulled to the device's own `GND`, so the device reads `LOW = RUN`.
+Relay CH4 NO  -> Device 2 Arduino D3
+Relay CH4 COM -> Device 2 Arduino GND
 
-AUTOHOME/RESET request relays:
-
-```text
-Relay CH4 NO  -> Device 1 Arduino D3
-Relay CH4 COM -> Device 1 Arduino GND
-
-Relay CH5 NO  -> Device 2 Arduino D3
-Relay CH5 COM -> Device 2 Arduino GND
+Relay CH5 NO  -> Device 3 Arduino D2
+Relay CH5 COM -> Device 3 Arduino GND
 
 Relay CH6 NO  -> Device 3 Arduino D3
 Relay CH6 COM -> Device 3 Arduino GND
 ```
 
-Device-side `D3` uses `INPUT_PULLUP`. When the relay closes, `D3` is pulled to the device's own `GND`, so the device reads `LOW = AUTOHOME/RESET request`.
+CH1/CH2 belong to Device 1, CH3/CH4 to Device 2, and CH5/CH6 to Device 3. Device-side `D2` and `D3` both use `INPUT_PULLUP`. When a relay closes, the corresponding input is pulled to the device's own `GND`: `D2 LOW = RUN`, and `D3 LOW = AUTOHOME/RESET request`.
 
 ### Recommended Protection Resistors
 

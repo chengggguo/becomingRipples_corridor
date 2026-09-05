@@ -8,8 +8,8 @@
   - Disable the D3 cross-controller bus completely.
   - Test one local LD2410 OUT input on D2.
   - Test all six relay channels:
-    D5/D6/D7  -> RUN relays for devices 1/2/3
-    D8/D9/D10 -> RESET relays for devices 1/2/3
+    D5/D7/D9  -> RUN relays for devices 1/2/3
+    D6/D8/D10 -> RESET relays for devices 1/2/3
 
   This variant is tuned for the relay behavior reported on site:
   RELAY_ACTIVE_LOW is set to false, meaning HIGH turns a relay ON.
@@ -28,8 +28,8 @@
 
 const int sensorPin = 2;
 const int deviceCount = 3;
-const int runRelayPins[deviceCount] = {5, 6, 7};
-const int resetRelayPins[deviceCount] = {8, 9, 10};
+const int runRelayPins[deviceCount] = {5, 7, 9};
+const int resetRelayPins[deviceCount] = {6, 8, 10};
 const int statusLedPin = 13;
 
 const bool SENSOR_ACTIVE_HIGH = true;

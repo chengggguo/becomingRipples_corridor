@@ -19,22 +19,19 @@ const float HomePointY = topleftYX[0];
 #define stepPinRight 6
 #define dirPinRight 7
 
-const int triggerPin = 2;       // LOW = RUN, HIGH = IDLE
-const int resetRequestPin = 3;  // LOW = AUTOHOME/RESET request
-
 // 步进电机的参数
 const float mmPerRotation = 60.0;
 const int stepsPerRotation = 400;
 const float stepLength = mmPerRotation / stepsPerRotation;
 
 const int servoRestAngle = 19;
-const unsigned long runDelayMinMs = 1000UL;
-const unsigned long runDelayMaxMs = 10000UL;
-const unsigned long idlePollDelayMs = 100UL;
+const unsigned long cyclePauseMs = 10000UL;
 const unsigned long watchdogPollIntervalMs = 50UL;
 const unsigned long homingSafetyMoveTimeoutMs = 15000UL;
-const unsigned long homingSeekTimeoutMs = 20000UL;
+const unsigned long homingSeekTimeoutMs = 90000UL;
+const unsigned long hallHighConfirmMs = 100UL;
 const unsigned long homingFailurePauseMs = 10000UL;
+const long homingTimeoutReverseSteps = 3200L;
 
 float currentLeftLength, currentRightLength;
 
@@ -46,39 +43,20 @@ AccelStepper stepperRight(AccelStepper::DRIVER, stepPinRight, dirPinRight);
 const int hallPinLeft = 11;
 const int hallPinRight = 12;
 
-bool wasRunning = false;
-bool pendingReset = false;
 bool hasKnownPosition = false;
 
-bool readRunSignal();
-bool readResetRequest();
-void sampleResetRequest();
 void delayWithWatchdog(unsigned long durationMs);
 void watchdogReboot();
 void disableSteppers();
 void handleAutoHomeTimeout(const char *phase);
+void handleHallSeekTimeout(const char *phase, AccelStepper &stepper, long reverseSteps);
 bool runSteppersUntilDone(unsigned long timeoutMs);
 void moveToRandomPosition();
-void moveToRandomStandbyPosition();
 void runOneRandomCycle();
 
 // 函数声明：执行软件重启
 void softwareReboot() {
   watchdogReboot();
-}
-
-bool readRunSignal() {
-    return digitalRead(triggerPin) == LOW;
-}
-
-bool readResetRequest() {
-    return digitalRead(resetRequestPin) == LOW;
-}
-
-void sampleResetRequest() {
-    if (readResetRequest()) {
-        pendingReset = true;
-    }
 }
 
 void delayWithWatchdog(unsigned long durationMs) {
@@ -90,7 +68,6 @@ void delayWithWatchdog(unsigned long durationMs) {
             break;
         }
 
-        sampleResetRequest();
         wdt_reset();
 
         unsigned long remainingMs = durationMs - elapsedMs;
@@ -115,6 +92,29 @@ void handleAutoHomeTimeout(const char *phase) {
     disableSteppers();
     delayWithWatchdog(homingFailurePauseMs);
     watchdogReboot();
+}
+
+void handleHallSeekTimeout(const char *phase, AccelStepper &stepper, long reverseSteps) {
+    Serial.print("AutoHome timeout: ");
+    Serial.println(phase);
+    Serial.print("Reversing timed-out side by ");
+    Serial.print(reverseSteps);
+    Serial.println(" steps");
+
+    stepper.move(reverseSteps);
+    unsigned long reverseStartedTime = millis();
+
+    while (stepper.distanceToGo() != 0) {
+        stepper.run();
+        wdt_reset();
+
+        if (millis() - reverseStartedTime > homingSafetyMoveTimeoutMs) {
+            Serial.println("Timed-out side reverse also timed out");
+            break;
+        }
+    }
+
+    Serial.println("Retrying Hall seek");
 }
 
 bool runSteppersUntilDone(unsigned long timeoutMs) {
@@ -213,7 +213,6 @@ void moveToPositionSynced(float x, float y) {
     while (stepperLeft.distanceToGo() != 0 || stepperRight.distanceToGo() != 0) {
         stepperLeft.run();
         stepperRight.run();
-        sampleResetRequest();
         wdt_reset();
 
         // 检查是否超时
@@ -273,26 +272,42 @@ void autoHome() {
 
     // 复位左电机
     unsigned long leftHomeStartTime = millis();
-    while (digitalRead(hallPinLeft) == LOW) {  // 当霍尔传感器检测到磁场时停止
+    while (true) {
+        if (digitalRead(hallPinLeft) == HIGH) {
+            delayWithWatchdog(hallHighConfirmMs);
+            if (digitalRead(hallPinLeft) == HIGH) {
+                break;
+            }
+        }
+
         stepperLeft.moveTo(stepperLeft.currentPosition() - 5);  // 每次移动更多步数
         stepperLeft.run();
         wdt_reset();
 
         if (millis() - leftHomeStartTime > homingSeekTimeoutMs) {
-            handleAutoHomeTimeout("left Hall seek");
+            handleHallSeekTimeout("left Hall seek", stepperLeft, homingTimeoutReverseSteps);
+            leftHomeStartTime = millis();
         }
     }
 
     Serial.println("Left homed");
     // 复位右电机
     unsigned long rightHomeStartTime = millis();
-    while (digitalRead(hallPinRight) == LOW) { // 同上
+    while (true) {
+        if (digitalRead(hallPinRight) == HIGH) {
+            delayWithWatchdog(hallHighConfirmMs);
+            if (digitalRead(hallPinRight) == HIGH) {
+                break;
+            }
+        }
+
         stepperRight.moveTo(stepperRight.currentPosition() + 5); // 每次移动更多步数
         stepperRight.run();
         wdt_reset();
 
         if (millis() - rightHomeStartTime > homingSeekTimeoutMs) {
-            handleAutoHomeTimeout("right Hall seek");
+            handleHallSeekTimeout("right Hall seek", stepperRight, -homingTimeoutReverseSteps);
+            rightHomeStartTime = millis();
         }
     }
     Serial.println("Right homed");
@@ -370,23 +385,10 @@ void moveToRandomPositionAndSwing() {
   swingServo();
 }
 
-void moveToRandomStandbyPosition() {
-  Serial.println("moving to random standby position");
-  moveToRandomPosition();
-}
-
 void runOneRandomCycle() {
-    delayWithWatchdog(random((long)runDelayMinMs, (long)runDelayMaxMs + 1L));
-    if (!readRunSignal()) {
-        return;
-    }
-
-    moveToRandomPosition();
-    sampleResetRequest();
-
-    if (readRunSignal()) {
-        swingServo();
-    }
+    moveToRandomPositionAndSwing();
+    Serial.println("cycle complete; waiting 10 seconds");
+    delayWithWatchdog(cyclePauseMs);
 }
 
 //通过arduino serial monitor输入坐标控制绘画机
@@ -437,9 +439,6 @@ void setup() {
     pinMode(dirPinRight, OUTPUT);
     pinMode(8, OUTPUT);  // EN1 for left motor
     pinMode(9, OUTPUT);  // EN2 for right motor
-    pinMode(triggerPin, INPUT_PULLUP);
-    pinMode(resetRequestPin, INPUT_PULLUP);
-
     digitalWrite(8, LOW);  // Enable the left motor
     digitalWrite(9, LOW);  // Enable the right motor
 
@@ -459,47 +458,11 @@ void setup() {
     autoHome();  // 执行自动复位功能++++++++
     randomSeed(analogRead(0));
     wdt_enable(WDTO_8S); //设置看门狗
-    moveToRandomStandbyPosition();
     myServo.write(servoRestAngle);
-    wasRunning = false;
-    pendingReset = false;
-
-    
 }
 
 void loop() {
-  sampleResetRequest();
-
   // moveToInputPosition();
-
-  if (readRunSignal()) {
-    if (!wasRunning) {
-      Serial.println("RUN started");
-      swingServo();
-      wasRunning = true;
-    }
-
-    runOneRandomCycle();
-    wdt_reset();//刷新看门狗计时
-    return;
-  }
-
-  if (wasRunning) {
-    Serial.println("RUN stopped; returning to standby");
-    moveToRandomStandbyPosition();
-    myServo.write(servoRestAngle);
-    wasRunning = false;
-  }
-
-  if (pendingReset || readResetRequest()) {
-    Serial.println("Reset request received in IDLE");
-    pendingReset = false;
-    autoHome();
-    moveToRandomStandbyPosition();
-    myServo.write(servoRestAngle);
-    pendingReset = false;
-  }
-
+  runOneRandomCycle();
   wdt_reset();//刷新看门狗计时
-  delayWithWatchdog(idlePollDelayMs);
 }

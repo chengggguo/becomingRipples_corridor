@@ -22,8 +22,8 @@
 
 - 在 `D2` 读取 LD2410C 数字 OUT。
 - 最后一次检测到 presence 后，继电器继续保持 3 分钟。
-- 用 `D5`、`D6`、`D7` 驱动三路 `RUN` 继电器。
-- 用 `D8`、`D9`、`D10` 驱动三路 `AUTOHOME/RESET` 请求继电器。
+- 用 `D5`、`D7`、`D9` 驱动三台装置的 `RUN` 继电器。
+- 用 `D6`、`D8`、`D10` 驱动三台装置的 `AUTOHOME/RESET` 请求继电器。
 - 支持低电平触发或高电平触发继电器模块。
 - 通过继电器干接点向三台装置 Arduino 发送 `RUN/IDLE`。
 - 通过 `D3` 上的 active-low Bus 与另一排控制器共享本地 3 分钟 `RUN` 请求。
@@ -57,17 +57,17 @@ Nano GND   -> Relay GND
 Relay CH1 NO  -> Device 1 Arduino D2 RUN input
 Relay CH1 COM -> Device 1 Arduino GND
 
-Relay CH2 NO  -> Device 2 Arduino D2 RUN input
-Relay CH2 COM -> Device 2 Arduino GND
+Relay CH2 NO  -> Device 1 Arduino D3 AUTOHOME/RESET request input
+Relay CH2 COM -> Device 1 Arduino GND
 
-Relay CH3 NO  -> Device 3 Arduino D2 RUN input
-Relay CH3 COM -> Device 3 Arduino GND
+Relay CH3 NO  -> Device 2 Arduino D2 RUN input
+Relay CH3 COM -> Device 2 Arduino GND
 
-Relay CH4 NO  -> Device 1 Arduino D3 AUTOHOME/RESET request input
-Relay CH4 COM -> Device 1 Arduino GND
+Relay CH4 NO  -> Device 2 Arduino D3 AUTOHOME/RESET request input
+Relay CH4 COM -> Device 2 Arduino GND
 
-Relay CH5 NO  -> Device 2 Arduino D3 AUTOHOME/RESET request input
-Relay CH5 COM -> Device 2 Arduino GND
+Relay CH5 NO  -> Device 3 Arduino D2 RUN input
+Relay CH5 COM -> Device 3 Arduino GND
 
 Relay CH6 NO  -> Device 3 Arduino D3 AUTOHOME/RESET request input
 Relay CH6 COM -> Device 3 Arduino GND
@@ -136,8 +136,8 @@ To reduce momentary false triggers, the sensor OUT signal must stay active conti
 
 - Read LD2410C digital OUT on D2.
 - Keep relays active for 3 minutes after last presence.
-- Drive `RUN` relay channels on D5, D6, and D7.
-- Drive `AUTOHOME/RESET` request relay channels on D8, D9, and D10.
+- Drive device `RUN` relay channels on D5, D7, and D9.
+- Drive device `AUTOHOME/RESET` request relay channels on D6, D8, and D10.
 - Support active-low or active-high relay modules.
 - Send `RUN/IDLE` to three device Arduinos through relay dry contacts.
 - Share the local 3-minute `RUN` request with the other row controller through an active-low bus on D3.
@@ -171,17 +171,17 @@ Relay contact side:
 Relay CH1 NO  -> Device 1 Arduino D2 RUN input
 Relay CH1 COM -> Device 1 Arduino GND
 
-Relay CH2 NO  -> Device 2 Arduino D2 RUN input
-Relay CH2 COM -> Device 2 Arduino GND
+Relay CH2 NO  -> Device 1 Arduino D3 AUTOHOME/RESET request input
+Relay CH2 COM -> Device 1 Arduino GND
 
-Relay CH3 NO  -> Device 3 Arduino D2 RUN input
-Relay CH3 COM -> Device 3 Arduino GND
+Relay CH3 NO  -> Device 2 Arduino D2 RUN input
+Relay CH3 COM -> Device 2 Arduino GND
 
-Relay CH4 NO  -> Device 1 Arduino D3 AUTOHOME/RESET request input
-Relay CH4 COM -> Device 1 Arduino GND
+Relay CH4 NO  -> Device 2 Arduino D3 AUTOHOME/RESET request input
+Relay CH4 COM -> Device 2 Arduino GND
 
-Relay CH5 NO  -> Device 2 Arduino D3 AUTOHOME/RESET request input
-Relay CH5 COM -> Device 2 Arduino GND
+Relay CH5 NO  -> Device 3 Arduino D2 RUN input
+Relay CH5 COM -> Device 3 Arduino GND
 
 Relay CH6 NO  -> Device 3 Arduino D3 AUTOHOME/RESET request input
 Relay CH6 COM -> Device 3 Arduino GND

@@ -5,7 +5,8 @@
 - `devices/190cmBar_device_status_led/`
   Current linked 190cmBar device version with D13 status feedback: OFF in IDLE, steady ON in RUN, and non-blocking fast blink during AUTOHOME/RESET.
 - `devices/190cmBar_device/`
-  Retained base firmware for each linked 190cmBar device, without D13 status feedback.
+  Standalone mechanism test. It ignores external RUN/RESET, homes at power-on,
+  then repeatedly moves to a random point, pushes the servo, and waits 10 seconds.
 - `controllers/presence_group_controller_2devices_sr602/`
   Two-device SR602 version. The SR602 Digital OUT is read on controller D2.
 - `controllers/presence_group_controller_2devices_tfluna/`

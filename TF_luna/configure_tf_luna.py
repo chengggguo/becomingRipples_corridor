@@ -223,19 +223,17 @@ def capture_scene(serial_module, args: argparse.Namespace, label: str, seconds=5
     if getattr(args, "demo_mode", False):
         demo_bases = {
             "门关闭、无人": (418, 2),
-            "门打开、无人": (415, 2),
-            "门正在摆动、无人": (410, 6),
-            "人刚进入门口": (345, 4),
-            "人进入约 20 cm": (325, 3),
-            "人进入约 40 cm": (305, 3),
+            "实际推门": (418, 2),
         }
         base, spread = demo_bases[label]
         samples = []
         for index in range(50):
             offset = (index % (spread * 2 + 1)) - spread
+            # Simulate the door approaching by up to 40 cm during opening.
+            approach = min(40, max(0, (index - 10) * 2)) if label == "实际推门" else 0
             samples.append(
                 {
-                    "distance_cm": base + offset,
+                    "distance_cm": base - approach + offset,
                     "strength": 240 + (index * 17) % 180,
                     "temperature_c": 25.0 + (index % 5) * 0.125,
                 }
@@ -251,7 +249,6 @@ def capture_scene(serial_module, args: argparse.Namespace, label: str, seconds=5
         )
         return samples
 
-    print(f"正在采样 {seconds:.0f} 秒：{label}")
     try:
         with serial_module.Serial(
             args.port,
@@ -264,6 +261,9 @@ def capture_scene(serial_module, args: argparse.Namespace, label: str, seconds=5
         ) as device:
             time.sleep(0.2)
             device.reset_input_buffer()
+            print(f"正在采样 {seconds:.0f} 秒：{label}", flush=True)
+            if label == "实际推门":
+                print("现在开始正常推门，让门板逐渐靠近测距仪。", flush=True)
             raw = read_for(device, seconds)
     except (serial_module.SerialException, OSError) as error:
         print(f"读取失败：{error}")
@@ -312,34 +312,50 @@ def run_measurement_wizard(serial_module, args: argparse.Namespace):
     print("\n现场参考测距不会修改 TF-Luna 设置。")
     print("每个场景准备好后按 Enter；输入 SKIP 可跳过该场景。")
     scenes = (
-        ("门关闭、无人", True),
-        ("门打开、无人", True),
-        ("门正在摆动、无人", True),
-        ("人刚进入门口", False),
-        ("人进入约 20 cm", False),
-        ("人进入约 40 cm", False),
+        "门关闭、无人",
+        "实际推门",
     )
     summaries = []
     records = []
-    for label, is_empty in scenes:
-        answer = input(f"\n准备“{label}”，按 Enter 采样，或输入 SKIP：").strip().upper()
-        if answer == "SKIP":
-            continue
-        samples = capture_scene(serial_module, args, label)
-        if not samples:
-            continue
-        distances = [sample["distance_cm"] for sample in samples]
-        summaries.append(
-            {
-                "scene": label,
-                "is_empty": is_empty,
-                "minimum": min(distances),
-                "median": statistics.median(distances),
-                "maximum": max(distances),
-            }
-        )
-        for number, sample in enumerate(samples, 1):
-            records.append({"scene": label, "sample": number, **sample})
+    for label in scenes:
+        while True:
+            if label == "实际推门":
+                print("\n先把门关好；按 Enter 后等采样开始，再正常推门，不要提前打开。")
+            answer = input(
+                f"\n准备“{label}”，按 Enter 采样，或输入 SKIP："
+            ).strip().upper()
+            if answer == "SKIP":
+                break
+
+            samples = capture_scene(serial_module, args, label)
+            while True:
+                decision = input(
+                    "\n确认本次采样请按 Enter 进入下一步；"
+                    "输入 R 重新采样当前场景："
+                ).strip().upper()
+                if decision in ("", "R"):
+                    break
+                print("请输入 R 重新采样，或直接按 Enter 接受本次结果。")
+
+            if decision == "R":
+                print(f"本次“{label}”数据已丢弃，准备重新采样。")
+                continue
+            if not samples:
+                print(f"“{label}”没有可保存的数据，继续下一步。")
+                break
+
+            distances = [sample["distance_cm"] for sample in samples]
+            summaries.append(
+                {
+                    "scene": label,
+                    "minimum": min(distances),
+                    "median": statistics.median(distances),
+                    "maximum": max(distances),
+                }
+            )
+            for number, sample in enumerate(samples, 1):
+                records.append({"scene": label, "sample": number, **sample})
+            break
 
     if records:
         demo_mode = getattr(args, "demo_mode", False)
@@ -347,33 +363,69 @@ def run_measurement_wizard(serial_module, args: argparse.Namespace):
         label = "演示数据" if demo_mode else "原始测距记录"
         print(f"\n{label}已保存：{output_path}")
 
-    empty_results = [item for item in summaries if item["is_empty"]]
-    if empty_results:
-        empty_minimum = min(item["minimum"] for item in empty_results)
-        suggested = max(1, empty_minimum - 40)
-        if suggested <= 800:
-            args.distance = suggested
-            print(
-                f"空场景最低可靠读数 E_min={empty_minimum} cm；"
-                f"按 40 cm 余量，Dist 输入默认值暂定为 {suggested} cm。"
-            )
-        else:
-            print("测量值超出当前厘米模式的预期范围，请先核对输出格式。")
-
-        moving = next(
-            (item for item in summaries if item["scene"] == "门正在摆动、无人"),
-            None,
-        )
-        if moving and moving["minimum"] < args.distance:
-            print("警告：门摆动已经低于拟定 Dist，会产生无人误触发；应调整激光方向。")
-
-    entry = next(
-        (item for item in summaries if item["scene"] == "人刚进入门口"),
-        None,
-    )
-    if entry and entry["median"] >= args.distance:
-        print("警告：人在门口的中位距离没有小于拟定 Dist，不能保证刚进门就触发。")
+    print("采样仅供参考，不自动计算或更改 Dist；后续参数由你手动填写。")
     return summaries
+
+
+def run_one_post_write_detection(serial_module, args: argparse.Namespace):
+    """Measure one real opening and explain it using the values just written."""
+    samples = capture_scene(serial_module, args, "实际推门")
+    if not samples:
+        print("检测失败：没有取得可靠距离，无法判断是否越过触发线。")
+        return
+
+    distances = [sample["distance_cm"] for sample in samples]
+    trigger_count = sum(distance < args.distance for distance in distances)
+    release_count = sum(
+        distance > args.distance + args.zone for distance in distances
+    )
+    zone_count = len(distances) - trigger_count - release_count
+
+    print("\n按刚才写入的参数判定：")
+    print(
+        f"  距离 < {args.distance} cm：开门/近距离触发条件，"
+        f"Pin 6 应在持续 {args.delay_in} ms 后输出 HIGH"
+    )
+    print(
+        f"  距离 > {args.distance + args.zone} cm：关门/释放条件，"
+        f"Pin 6 应在持续 {args.delay_out} ms 后输出 LOW"
+    )
+    print(
+        f"  本次可靠读数 {len(distances)} 帧："
+        f"触发区 {trigger_count}，回差区 {zone_count}，释放区 {release_count}"
+    )
+
+    if trigger_count:
+        print("检测结果：已经测到低于 Dist 的距离，实际推门跨过了开门触发线。")
+    else:
+        print("检测结果：没有测到低于 Dist 的距离，本次推门没有跨过开门触发线。")
+        print("请检查安装角度或重新设置 Dist，然后再测试。")
+
+    if release_count:
+        print("采样中也出现了释放区距离；关门状态具备恢复 LOW 的距离条件。")
+    else:
+        print("采样中没有出现释放区距离；请另行确认关门后距离能大于 Dist + Zone。")
+    print("说明：这里根据 UART 距离推算 Pin 6 应有的状态，不是对 Pin 6 电压的直接测量。")
+
+
+def run_post_write_detection(serial_module, args: argparse.Namespace):
+    """Allow repeated opening tests before proceeding to power-cycle verification."""
+    print("\n写入后开门检测不会再次修改 TF-Luna 设置。")
+    test_number = 1
+    while True:
+        print(f"\n第 {test_number} 次检测：先把门完全关好。")
+        print("按 Enter 后等采样开始，再正常推门。")
+        answer = input("按 Enter 开始 5 秒检测，或输入 SKIP 结束检测：").strip().upper()
+        if answer == "SKIP":
+            print("开门检测已结束。")
+            return
+
+        run_one_post_write_detection(serial_module, args)
+        again = input("\n是否继续做下一次开门检测？[y/N]: ").strip().lower()
+        if again not in ("y", "yes"):
+            print("开门检测已结束，继续进入断电重启验证。")
+            return
+        test_number += 1
 
 
 def run_wizard(args: argparse.Namespace, serial_module, list_ports_module) -> bool:
@@ -413,13 +465,18 @@ def run_wizard(args: argparse.Namespace, serial_module, list_ports_module) -> bo
         "1/4 Dist / 触发距离（厘米）：实测距离小于此值时判定有人",
         args.distance,
         1,
+        799,
+    )
+    release_distance = prompt_int(
+        "2/4 释放距离（厘米）：实测距离大于此值时判定无人并恢复 LOW",
+        args.distance + args.zone,
+        args.distance + 1,
         800,
     )
-    args.zone = prompt_int(
-        "2/4 Zone / 释放回差（厘米）：离开距离需大于 Dist + Zone",
-        args.zone,
-        0,
-        800,
+    args.zone = release_distance - args.distance
+    print(
+        f"脚本内部换算：Zone = 释放距离 {release_distance} "
+        f"- 触发距离 {args.distance} = {args.zone} cm"
     )
     args.delay_in = prompt_int(
         "3/4 Delay1 / 进入确认延迟（毫秒）：近距离持续多久才输出 HIGH",
@@ -479,6 +536,7 @@ def send_sequence(serial_module, args: argparse.Namespace, commands) -> bool:
                 print(
                     "[DEMO] Decoded on/off settings: "
                     f"Mode={decoded['mode']}, Dist={decoded['distance']} cm, "
+                    f"Release={decoded['distance'] + decoded['zone']} cm, "
                     f"Zone={decoded['zone']} cm, Delay1={decoded['delay_in']} ms, "
                     f"Delay2={decoded['delay_out']} ms"
                 )
@@ -515,6 +573,7 @@ def send_sequence(serial_module, args: argparse.Namespace, commands) -> bool:
                                 "Decoded on/off settings: "
                                 f"Mode={decoded['mode']}, "
                                 f"Dist={decoded['distance']} cm, "
+                                f"Release={decoded['distance'] + decoded['zone']} cm, "
                                 f"Zone={decoded['zone']} cm, "
                                 f"Delay1={decoded['delay_in']} ms, "
                                 f"Delay2={decoded['delay_out']} ms"
@@ -664,8 +723,8 @@ def main() -> int:
             return 2
 
     if args.wizard:
-        print("\n释放阈值 Dist + Zone = "
-              f"{args.distance + args.zone} cm")
+        print(f"\n释放距离 = {args.distance + args.zone} cm")
+        print(f"发送给 TF-Luna 的内部 Zone = {args.zone} cm")
         confirmation = input(
             f"确认无误后输入大写 WRITE，向 {args.port} 写入："
         ).strip()
@@ -681,6 +740,12 @@ def main() -> int:
     else:
         print("\nConfiguration sequence completed.")
         if args.wizard:
+            test_answer = input(
+                "\n是否立即做一次写入后的开门检测？[Y/n]: "
+            ).strip().lower()
+            if test_answer in ("", "y", "yes"):
+                run_post_write_detection(serial_module, args)
+
             print("\n现在请给 TF-Luna 断电重启。")
             print("可以拔下并重新插入 USB，然后等待串口重新出现。")
             answer = input(

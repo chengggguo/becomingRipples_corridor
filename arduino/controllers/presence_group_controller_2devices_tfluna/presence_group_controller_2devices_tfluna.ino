@@ -60,7 +60,7 @@ const unsigned long sensorWarmupMs = 0UL; // No controller-side startup wait.
 const unsigned long presenceDebounceMs = 100UL;
 
 // Controller timing values are milliseconds.
-const unsigned long holdTimeMs = 90000UL;
+const unsigned long holdTimeMs = 9000UL;
 const unsigned long secondDeviceRunDelayMs = 10000UL;    // EN: Start the second device 10s later. 中文：第二台装置延迟 10 秒启动。
 const unsigned long runTimeBeforeResetMs = 1800000UL;    // EN: Each device resets after 30 min accumulated RUN. 中文：每台设备累计 RUN 30 分钟后才进入复位队列。
 const unsigned long rowAResetIdleDelayMs = 300000UL;     // EN: Row A waits 5 min after both sides are idle. 中文：两边都空闲后，A 列等待 5 分钟。

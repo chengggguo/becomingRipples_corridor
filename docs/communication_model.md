@@ -46,10 +46,10 @@ idle reset scheduler
 
 ```text
 Group Arduino D5  -> Relay IN1 RUN for device 1
-Group Arduino D6  -> Relay IN2 RUN for device 2
-Group Arduino D7  -> Relay IN3 RUN for device 3
-Group Arduino D8  -> Relay IN4 RESET request for device 1
-Group Arduino D9  -> Relay IN5 RESET request for device 2
+Group Arduino D6  -> Relay IN2 RESET request for device 1
+Group Arduino D7  -> Relay IN3 RUN for device 2
+Group Arduino D8  -> Relay IN4 RESET request for device 2
+Group Arduino D9  -> Relay IN5 RUN for device 3
 Group Arduino D10 -> Relay IN6 RESET request for device 3
 ```
 
@@ -59,17 +59,17 @@ Group Arduino D10 -> Relay IN6 RESET request for device 3
 Relay CH1 NO  -> Device 1 Arduino D2 RUN input
 Relay CH1 COM -> Device 1 Arduino GND
 
-Relay CH2 NO  -> Device 2 Arduino D2 RUN input
-Relay CH2 COM -> Device 2 Arduino GND
+Relay CH2 NO  -> Device 1 Arduino D3 RESET request input
+Relay CH2 COM -> Device 1 Arduino GND
 
-Relay CH3 NO  -> Device 3 Arduino D2 RUN input
-Relay CH3 COM -> Device 3 Arduino GND
+Relay CH3 NO  -> Device 2 Arduino D2 RUN input
+Relay CH3 COM -> Device 2 Arduino GND
 
-Relay CH4 NO  -> Device 1 Arduino D3 RESET request input
-Relay CH4 COM -> Device 1 Arduino GND
+Relay CH4 NO  -> Device 2 Arduino D3 RESET request input
+Relay CH4 COM -> Device 2 Arduino GND
 
-Relay CH5 NO  -> Device 2 Arduino D3 RESET request input
-Relay CH5 COM -> Device 2 Arduino GND
+Relay CH5 NO  -> Device 3 Arduino D2 RUN input
+Relay CH5 COM -> Device 3 Arduino GND
 
 Relay CH6 NO  -> Device 3 Arduino D3 RESET request input
 Relay CH6 COM -> Device 3 Arduino GND
@@ -139,10 +139,10 @@ Each row-level Arduino directly reads its local presence sensor, then controls s
 
 ```text
 Group Arduino D5  -> Relay IN1 RUN for device 1
-Group Arduino D6  -> Relay IN2 RUN for device 2
-Group Arduino D7  -> Relay IN3 RUN for device 3
-Group Arduino D8  -> Relay IN4 RESET request for device 1
-Group Arduino D9  -> Relay IN5 RESET request for device 2
+Group Arduino D6  -> Relay IN2 RESET request for device 1
+Group Arduino D7  -> Relay IN3 RUN for device 2
+Group Arduino D8  -> Relay IN4 RESET request for device 2
+Group Arduino D9  -> Relay IN5 RUN for device 3
 Group Arduino D10 -> Relay IN6 RESET request for device 3
 ```
 
@@ -152,17 +152,17 @@ The relay contact side connects to each corresponding device:
 Relay CH1 NO  -> Device 1 Arduino D2 RUN input
 Relay CH1 COM -> Device 1 Arduino GND
 
-Relay CH2 NO  -> Device 2 Arduino D2 RUN input
-Relay CH2 COM -> Device 2 Arduino GND
+Relay CH2 NO  -> Device 1 Arduino D3 RESET request input
+Relay CH2 COM -> Device 1 Arduino GND
 
-Relay CH3 NO  -> Device 3 Arduino D2 RUN input
-Relay CH3 COM -> Device 3 Arduino GND
+Relay CH3 NO  -> Device 2 Arduino D2 RUN input
+Relay CH3 COM -> Device 2 Arduino GND
 
-Relay CH4 NO  -> Device 1 Arduino D3 RESET request input
-Relay CH4 COM -> Device 1 Arduino GND
+Relay CH4 NO  -> Device 2 Arduino D3 RESET request input
+Relay CH4 COM -> Device 2 Arduino GND
 
-Relay CH5 NO  -> Device 2 Arduino D3 RESET request input
-Relay CH5 COM -> Device 2 Arduino GND
+Relay CH5 NO  -> Device 3 Arduino D2 RUN input
+Relay CH5 COM -> Device 3 Arduino GND
 
 Relay CH6 NO  -> Device 3 Arduino D3 RESET request input
 Relay CH6 COM -> Device 3 Arduino GND

@@ -1,135 +1,52 @@
-# 190cmBar Device Firmware / 190cmBar 装置端固件
+# 190cmBar 装置自主循环测试代码
 
-## 中文
+`190cmBar_device.ino` 用来单独测试一台 190cmBar 装置的机械部分。它不等待人体传感器或继电器信号；Arduino Uno 通电后会自动归零，然后持续随机移动并推动舵机。
 
-这个文件夹保存每台 190cmBar 装置 Arduino 的修改版固件。当前主文件是：
-
-- `190cmBar_device.ino`
-
-这版代码已经从原始的“上电后持续随机运行”改为“由 Presence Group Controller 通过继电器控制运行和归零”。LED 继电器相关逻辑已经移除，装置端现在只响应两个外部输入：`D2` 的 `RUN/IDLE` 信号，以及 `D3` 的 `AUTOHOME/RESET` 请求。
-
-### 引脚
+这不是现场联动的正式代码。需要接收外部 RUN 和 RESET 信号时，请使用：
 
 ```text
-D2  <- RUN input, LOW = RUN, HIGH = IDLE
-D3  <- AUTOHOME/RESET request input, LOW = request
-D4  -> left stepper DIR
-D5  -> left stepper STEP
-D6  -> right stepper STEP
-D7  -> right stepper DIR
-D8  -> left stepper enable
-D9  -> right stepper enable
-D10 -> servo
-D11 <- left Hall sensor
-D12 <- right Hall sensor
+arduino/devices/190cmBar_device_status_led/190cmBar_device_status_led.ino
 ```
 
-`D2` 和 `D3` 都使用 `INPUT_PULLUP`。继电器闭合时，把对应输入脚拉到装置 Arduino 自己的 `GND`。
-
-### 开机行为
-
-装置上电后会先执行 `autoHome()`，完成左右步进电机归零。第一次开机时坐标还未知，所以会跳过回 HomePoint 的预移动，直接执行安全反向和 Hall 寻零。归零完成后，装置会移动到画布范围内的一个随机待机点，然后保持舵机在休息角度，等待 `D2 = LOW` 的 `RUN` 信号。
-
-### RUN 行为
-
-当 `D2` 从 `IDLE` 进入 `RUN` 时，装置会先在当前随机待机点执行一次 `swingServo()`。之后每一轮动作按这个顺序执行：
-
-1. 随机等待 1 到 10 秒。
-2. 如果 `D2` 已经回到 `HIGH`，这一轮直接结束。
-3. 如果 `D2` 仍然是 `LOW`，移动到下一个随机位置。
-4. 移动完成后再次读取 `D2` 和 `D3`。
-5. 如果 `D2` 仍然是 `LOW`，执行一次 `swingServo()`。
-
-这意味着 `STOP` 不会急停当前移动；如果停止信号发生在移动过程中，装置会完成当前移动，然后不再执行下一次舵机动作，并回到随机待机状态。
-
-### RESET 行为
-
-`D3 = LOW` 会被记录为一次 pending reset 请求。装置不会在 RUN 动作中立即归零，而是在进入 IDLE 后执行：
-
-1. 如果当前位置坐标已知，先移动回 `HomePointX/HomePointY`，也就是画面顶部中心。
-2. 左右电机按原安全方向各自移动约 3000 steps，离开 Hall 触发区。
-3. 左右电机分别寻找 Hall 触发点，并重新校准坐标。
-4. 移动到一个新的随机待机点。
-5. 舵机回到休息角度。
-6. 继续等待下一次 `RUN`。
-
-这样 reset 可以由 Presence Group Controller 在无人时逐台触发，不会和观众在场时的 RUN 动作直接冲突。
-
-### Watchdog 和旧重启逻辑
-
-当前 watchdog 仍然使用 `WDTO_8S`。所有 1 到 10 秒随机等待都通过 `delayWithWatchdog()` 分段延迟并刷新 watchdog，因此不会因为等待超过 8 秒而误复位。
-
-原始代码中“每 10 到 20 轮自动软件重启”的逻辑已经移除。现在的日常归零由 Presence Group Controller 的逐台 reset 请求负责。`softwareReboot()` 仍然保留，只用于 `moveToPositionSynced()` 运动超时后的异常恢复；它现在通过 watchdog 触发重启。
-
-`autoHome()` 现在有超时保护：安全反向移动默认 15 秒超时，单侧 Hall 寻零默认 20 秒超时。如果超时，代码会关闭步进电机使能，等待 10 秒，然后用 watchdog 触发重启。重启后会重新从开机流程开始尝试归零。
-
-### 已知限制
-
-这版代码保留阻塞式机械动作，优先保证行为简单和现场稳定。`STOP` 和 `AUTOHOME/RESET` 都不会中断正在执行的步进电机移动或舵机动作；它们会在当前动作边界被处理。
-
-## English
-
-This folder contains the modified Arduino firmware for each 190cmBar device. The current main file is:
-
-- `190cmBar_device.ino`
-
-This version changes the device from "continuous random motion after power-on" to "run and home under relay control from the Presence Group Controller". The LED relay logic has been removed. The device now responds to two external inputs only: `D2` for `RUN/IDLE`, and `D3` for `AUTOHOME/RESET` requests.
-
-### Pins
+## 接线和引脚
 
 ```text
-D2  <- RUN input, LOW = RUN, HIGH = IDLE
-D3  <- AUTOHOME/RESET request input, LOW = request
-D4  -> left stepper DIR
-D5  -> left stepper STEP
-D6  -> right stepper STEP
-D7  -> right stepper DIR
-D8  -> left stepper enable
-D9  -> right stepper enable
-D10 -> servo
-D11 <- left Hall sensor
-D12 <- right Hall sensor
+D4        -> 左步进电机 DIR
+D5        -> 左步进电机 STEP
+D6        -> 右步进电机 STEP
+D7        -> 右步进电机 DIR
+D8        -> 左步进驱动器 ENABLE
+D9        -> 右步进驱动器 ENABLE
+D10       -> 舵机
+D11       <- 左 Hall 传感器
+D12       <- 右 Hall 传感器
 ```
 
-Both `D2` and `D3` use `INPUT_PULLUP`. When a relay closes, it pulls the corresponding input pin to the device Arduino's own `GND`.
+D2、D3 在这份测试代码中不使用，不需要连接 RUN 或 RESET 继电器。D13 也没有状态灯功能。
 
-### Startup Behavior
+## 通电后的循环
 
-After power-on, the device first runs `autoHome()` to home both stepper motors. On the first boot, the coordinate position is still unknown, so the firmware skips the HomePoint pre-move and directly performs the safety reverse and Hall seeking steps. After homing, it moves to a random standby point inside the drawing area, keeps the servo at its rest angle, and waits for `D2 = LOW`.
+1. 通电后立即执行 `autoHome()`。
+2. 左右两侧分别取得 D11、D12 的 Hall 信号，建立机械原点。
+3. 在绘画范围内选择一个随机位置，并驱动两台步进电机移动过去。
+4. 到达随机位置后，舵机从休息角度 19° 推到 54°，然后回到 19°。
+5. 舵机动作结束后等待 10 秒。
+6. 再选择下一个随机位置，重复“移动 → 舵机推动 → 等待 10 秒”。
 
-### RUN Behavior
+10 秒是每次舵机动作完成后的固定等待时间。两次推动之间的实际时间还包括下一次步进电机移动所需的时间。
 
-When `D2` changes from `IDLE` to `RUN`, the device first runs `swingServo()` at the current random standby point. Each following motion cycle then runs in this order:
+## Auto Home
 
-1. Wait randomly from 1 to 10 seconds.
-2. If `D2` has returned to `HIGH`, end this cycle immediately.
-3. If `D2` is still `LOW`, move to the next random position.
-4. After movement completes, read `D2` and `D3` again.
-5. If `D2` is still `LOW`, run `swingServo()` once.
+第一次通电时，代码不知道当前位置，因此会先让左右电机按安全方向各移动约 3000 步，再依次寻找左右 Hall 信号。Hall 必须连续保持 HIGH 100ms 才会被确认。
 
-This means `STOP` does not emergency-stop the current movement. If the stop signal arrives during movement, the device finishes that movement, skips the next servo swing, and returns to random standby.
+- 安全反向移动超过 15 秒仍未完成：关闭步进驱动器，等待 10 秒，然后通过 watchdog 重启。
+- 单侧寻找 Hall 超过 90 秒：该侧反向移动 3200 步，再重新寻找 Hall。
+- 普通随机移动超过 30 秒仍未完成：通过 watchdog 重启。
 
-### RESET Behavior
+代码使用 8 秒 watchdog。固定的 10 秒等待会分成短时间片并持续刷新 watchdog，不会因为等待时间超过 8 秒而误重启。
 
-`D3 = LOW` is stored as a pending reset request. The device does not home immediately during RUN. After it reaches IDLE, it performs:
+## 与正式代码的区别
 
-1. If the current coordinate is known, move back to `HomePointX/HomePointY`, the top-center point of the drawing area.
-2. Move the left and right motors about 3000 steps in their existing safety-reverse directions, away from the Hall trigger area.
-3. Seek the left and right Hall trigger points and recalibrate the coordinate system.
-4. Move to a new random standby point.
-5. Return the servo to its rest angle.
-6. Wait for the next `RUN`.
+正式代码 `190cmBar_device_status_led.ino` 使用 A1 接收 RUN、A2 接收 RESET，并用 D13 显示状态。正式代码开机归零后先移动到随机待机位置，随后等待外部 RUN。
 
-This lets the Presence Group Controller reset devices one at a time while the room is empty, without directly conflicting with visitor-triggered RUN behavior.
-
-### Watchdog and Old Reset Logic
-
-The watchdog still uses `WDTO_8S`. All 1-to-10-second random waits go through `delayWithWatchdog()`, which breaks the wait into short chunks and refreshes the watchdog, so waits longer than 8 seconds do not cause accidental resets.
-
-The original "automatic software reboot every 10 to 20 rounds" logic has been removed. Routine homing is now handled by one-at-a-time reset requests from the Presence Group Controller. `softwareReboot()` is still kept only as abnormal recovery after a `moveToPositionSynced()` movement timeout; it now triggers reboot through the watchdog.
-
-`autoHome()` now has timeout protection: the safety reverse move defaults to a 15-second timeout, and each Hall seek defaults to a 20-second timeout. If a timeout happens, the firmware disables the stepper enables, waits 10 seconds, and then uses the watchdog to reboot. After reboot, the device starts from the normal startup sequence and attempts homing again.
-
-### Known Limitation
-
-This version keeps blocking mechanical actions because it is simpler and safer for installation testing. `STOP` and `AUTOHOME/RESET` do not interrupt an ongoing stepper movement or servo action; they are handled at action boundaries.
+本测试代码不读取 A1、A2、D2 或 D3，也不等待外部命令；只要保持通电，就会一直执行装置本身的循环测试。
