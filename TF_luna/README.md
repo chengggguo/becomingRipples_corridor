@@ -17,6 +17,7 @@
 - `proposed_hex_commands.txt`：当前拟定参数对应的十六进制命令，供人工核对。
 - `tf_luna_measurements_日期时间.csv`：真机测距产生的原始数据。
 - `tf_luna_demo_measurements_日期时间.csv`：DEMO 模拟数据，不能作为现场参数。
+- `images/tf_luna_pinout_wiring.png`：TF-Luna 插头 Pin 1–6 编号和功能的合并接线参考图。
 
 ## 两个双击启动脚本
 
@@ -235,6 +236,10 @@ Python 不是刷写 TF-Luna 固件；它只通过 CP2102 发送官方 UART 配�
 断电后仍读到相同参数，才视为保存成功。
 
 ## CP2102 配置接线
+
+先按下图确认 TF-Luna 插座的 Pin 1–6 排列和每个 Pin 的功能。上半部分标出插座编号，下半部分是对应功能表。
+
+![TF-Luna Pin 1–6 编号及功能](images/tf_luna_pinout_wiring.png)
 
 ```text
 CP2102 5V/VBUS → TF-Luna Pin 1 +5V
